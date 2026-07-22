@@ -1,0 +1,43 @@
+.wrap {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.card {
+  width: 420px;
+  border: 1px solid var(--border);
+  background: var(--bg-panel);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.card h1 {
+  margin: 0;
+  letter-spacing: 0.12em;
+}
+
+.sub {
+  margin: 0;
+  color: var(--text-dim);
+}
+
+.card label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--text-dim);
+}
+
+.card input,
+.card select {
+  background: var(--bg-inset);
+  border: 1px solid var(--border);
+  color: var(--text);
+  height: 28px;
+  padding: 0 8px;
+}

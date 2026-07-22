@@ -1,0 +1,37 @@
+.btn {
+  height: var(--row);
+  min-width: 72px;
+  padding: 0 var(--s3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r1);
+  background: var(--bg-panel-2);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--bg-hover);
+}
+
+.btn:focus-visible {
+  outline: 1px solid var(--accent-rail);
+  outline-offset: 1px;
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.primary {
+  border-color: var(--border-strong);
+}
+
+.danger {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+.ghost {
+  background: transparent;
+}

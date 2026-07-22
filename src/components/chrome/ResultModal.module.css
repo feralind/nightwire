@@ -1,0 +1,73 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: var(--z-modal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal {
+  width: 420px;
+  max-width: calc(100vw - 24px);
+  border: 1px solid #333;
+  border-radius: var(--r1);
+  background: var(--bg-panel);
+  padding: var(--s4);
+  animation: enter 120ms ease-out;
+}
+
+@keyframes enter {
+  from {
+    opacity: 0;
+    transform: translateY(1px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modal {
+    animation: none;
+  }
+}
+
+.title {
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: var(--s3);
+}
+
+.success {
+  color: var(--success);
+}
+.fail {
+  color: var(--danger);
+}
+.jail {
+  color: var(--jail);
+}
+.hospital {
+  color: var(--hospital);
+}
+.mixed {
+  color: var(--text-warn);
+}
+
+.lines {
+  margin: 0 0 var(--s3);
+  padding-left: var(--s4);
+}
+
+.cash {
+  font-size: 16px;
+  margin-bottom: var(--s3);
+}
+
+.actions {
+  display: flex;
+  gap: var(--s2);
+}

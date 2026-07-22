@@ -1,0 +1,119 @@
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--s3);
+}
+
+.card {
+  border: 1px solid var(--border);
+  background: linear-gradient(165deg, #222228 0%, var(--bg-panel) 100%);
+  border-radius: var(--r1);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+.art {
+  position: relative;
+  height: 168px;
+  overflow: hidden;
+  background-color: #151518;
+}
+
+.portrait {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center top;
+}
+
+.artShade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 28%, rgba(0, 0, 0, 0.82) 100%);
+  pointer-events: none;
+}
+
+.badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border: 1px solid var(--border-strong);
+  background: rgba(0, 0, 0, 0.65);
+  color: var(--text);
+  z-index: 1;
+}
+
+.artTitle {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 8px;
+  z-index: 1;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.artTitle strong {
+  font-size: 13px;
+  text-shadow: 0 1px 3px #000;
+}
+
+.artTitle span {
+  font-size: 11px;
+  color: rgba(220, 220, 220, 0.8);
+  white-space: nowrap;
+}
+
+.body {
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+
+.flavor {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 12px;
+  line-height: 1.4;
+  flex: 1;
+}
+
+.meta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.meta > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 11px;
+}
+
+.meta span {
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 9px;
+}
+
+@media (max-width: 900px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}
