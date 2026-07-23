@@ -60,6 +60,7 @@ export default function LicensesPage() {
             {sum.jobPayBonus ? <li>Job pay +{sum.jobPayBonus}%</li> : null}
             {sum.bankInterestBonus ? <li>Bank interest +{sum.bankInterestBonus}%</li> : null}
             {sum.oddsBonus ? <li>Crime odds crumbs +{sum.oddsBonus}</li> : null}
+            {sum.hospitalTimeReduction ? <li>Hospital time −{sum.hospitalTimeReduction}%</li> : null}
             {sum.weeklyStipend ? <li>Weekly stipend ${sum.weeklyStipend}</li> : null}
             <li>Legitimacy {Math.floor(s.legitimacy)} (certs bump on earn)</li>
           </ul>

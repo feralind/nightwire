@@ -4,6 +4,40 @@
   gap: var(--s3);
 }
 
+.filters {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.tab,
+.tabActive {
+  background: linear-gradient(180deg, #2a2a32, var(--bg-inset));
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  height: 24px;
+  padding: 0 10px;
+  cursor: pointer;
+  border-radius: var(--r1);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 11px;
+}
+
+.tabActive {
+  color: var(--text);
+  background: linear-gradient(180deg, #32323c, var(--bg-active));
+  border-color: var(--accent-rail);
+  box-shadow: 0 0 0 1px rgba(74, 158, 255, 0.15);
+}
+
 .card {
   border: 1px solid var(--border);
   background: linear-gradient(165deg, #222228 0%, var(--bg-panel) 100%);

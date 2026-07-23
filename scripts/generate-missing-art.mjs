@@ -598,6 +598,49 @@ async function main() {
     results.push(await writeWebp(`districts/${id}.webp`, svg, W, H));
   }
 
+  // Campus school banners + hero
+  const CAMPUS = {
+    hero: { pal: "civic", seed: 80 },
+    street: { pal: "street", seed: 81 },
+    commerce: { pal: "spireyard", seed: 82 },
+    harbor: { pal: "docksreach", seed: 83 },
+    med: { pal: "clinic", seed: 84 },
+    locks: { pal: "millstone", seed: 85 },
+  };
+  for (const [id, meta] of Object.entries(CAMPUS)) {
+    const pal = PAL[meta.pal];
+    const svg = interiorSvg(W, H, pal, {
+      shelves: id === "commerce" || id === "locks",
+      window: id === "med" || id === "hero",
+      seed: meta.seed,
+      object:
+        id === "med"
+          ? `<rect x="${W * 0.35}" y="${H * 0.4}" width="90" height="50" fill="#121820" stroke="${pal.glow}" stroke-width="2"/>
+             <rect x="${W * 0.48}" y="${H * 0.48}" width="18" height="5" fill="${pal.accent}" opacity="0.5"/>
+             <rect x="${W * 0.52}" y="${H * 0.44}" width="5" height="18" fill="${pal.accent}" opacity="0.5"/>`
+          : id === "locks"
+            ? `<rect x="${W * 0.4}" y="${H * 0.38}" width="70" height="90" fill="#121018" stroke="${pal.accent}" stroke-width="2"/>
+               <circle cx="${W * 0.55}" cy="${H * 0.55}" r="12" fill="none" stroke="${pal.glow}" stroke-width="3"/>`
+            : id === "harbor"
+              ? `<rect x="${W * 0.25}" y="${H * 0.45}" width="50" height="70" fill="#101820"/><rect x="${W * 0.45}" y="${H * 0.4}" width="50" height="75" fill="#12141a" stroke="${pal.glow}" stroke-width="1"/><rect x="${W * 0.65}" y="${H * 0.48}" width="50" height="65" fill="#0e1418"/>`
+              : `<rect x="${W * 0.3}" y="${H * 0.45}" width="140" height="14" fill="#1a1c22"/><rect x="${W * 0.45}" y="${H * 0.32}" width="40" height="50" fill="#12141a" stroke="${pal.glow}" stroke-width="1"/>`,
+    });
+    results.push(await writeWebp(`campus/${id}.webp`, svg, W, H));
+  }
+
+  // New campus gigs
+  for (const [id, palKey] of Object.entries({ clinic_aide: "clinic", locksmith_call: "millstone" })) {
+    const pal = PAL[palKey];
+    const svg = interiorSvg(1024, 1024, pal, {
+      seed: id.length * 3,
+      object:
+        id === "clinic_aide"
+          ? `<rect x="360" y="400" width="120" height="70" fill="#121820" stroke="${pal.glow}" stroke-width="2"/><rect x="410" y="425" width="20" height="6" fill="${pal.accent}" opacity="0.5"/><rect x="417" y="415" width="6" height="20" fill="${pal.accent}" opacity="0.5"/>`
+          : `<rect x="380" y="360" width="80" height="110" fill="#121018" stroke="${pal.accent}" stroke-width="2"/><circle cx="440" cy="520" r="16" fill="none" stroke="${pal.glow}" stroke-width="3"/>`,
+    });
+    results.push(await writeWebp(`gigs/${id}.webp`, svg, 1024, 1024));
+  }
+
   // Heist hero + per-board thumbs
   {
     const pal = PAL.heavy;
@@ -624,7 +667,23 @@ async function main() {
     ward_diversion: "ashcourt",
     spire_float: "spireyard",
     soft_house_run: "docksreach",
-    bond_desk: "ashcourt",
+    bond_desk: "spireyard",
+    neon_till: "glassrow",
+    gallery_wire: "glassrow",
+    loft_mail: "glassrow",
+    pallet_ghost: "millstone",
+    substation_siphon: "millstone",
+    chop_lane: "millstone",
+    crane_blind: "docksreach",
+    cold_chain: "docksreach",
+    ambulance_divert: "ashcourt",
+    evidence_soft: "ashcourt",
+    clinic_ledger: "ashcourt",
+    courier_swap: "spireyard",
+    penthouse_skim: "spireyard",
+    stoop_tax: "oldcommons",
+    race_bag: "oldcommons",
+    alley_stash: "oldcommons",
   };
   for (const [id, dist] of Object.entries(heistBoards)) {
     const pal = PAL[dist];
@@ -663,6 +722,79 @@ async function main() {
       seed: id.length,
     });
     results.push(await writeWebp(`safehouse/${id}.webp`, svg, 1024, 1024));
+  }
+
+  // Contact portraits 640
+  const CONTACT_PORTRAITS = {
+    reed: { pal: "glassrow", kind: "civilian" },
+    mara: { pal: "civic", kind: "exec" },
+    kilo: { pal: "docksreach", kind: "runner" },
+    ivy: { pal: "millstone", kind: "civilian" },
+    nix: { pal: "street", kind: "thug" },
+    soot: { pal: "millstone", kind: "guard" },
+    wren: { pal: "oldcommons", kind: "thug" },
+    calder: { pal: "clinic", kind: "civilian" },
+    quill: { pal: "spireyard", kind: "exec" },
+    joss: { pal: "glassrow", kind: "runner" },
+    haze: { pal: "docksreach", kind: "civilian" },
+    pike: { pal: "oldcommons", kind: "guard" },
+    vex: { pal: "street", kind: "thug" },
+  };
+  for (const [id, meta] of Object.entries(CONTACT_PORTRAITS)) {
+    const pal = PAL[meta.pal];
+    const svg = portraitSvg(640, 640, pal, meta.kind);
+    results.push(await writeWebp(`contacts/${id}.webp`, svg, 640, 640));
+  }
+
+  // Lore heroes
+  {
+    const pal = PAL.civic;
+    const svg = interiorSvg(W, H, pal, {
+      shelves: true,
+      window: true,
+      object: `<rect x="${W * 0.2}" y="${H * 0.35}" width="90" height="120" fill="#12141a" stroke="${pal.accent}" stroke-width="2"/>
+        <rect x="${W * 0.38}" y="${H * 0.4}" width="90" height="110" fill="#101218" stroke="${pal.glow}" stroke-width="2"/>
+        <rect x="${W * 0.56}" y="${H * 0.38}" width="90" height="115" fill="#14161c" stroke="${pal.accent}" stroke-width="2"/>`,
+      seed: 21,
+    });
+    results.push(await writeWebp("codex/hero.webp", svg, W, H));
+  }
+  {
+    const pal = PAL.glassrow;
+    const svg = sceneSvg(W, H, pal, {
+      seed: 44,
+      ground: 0.68,
+      rainOn: true,
+      figureAt: [W * 0.28, H * 0.72, 1.15],
+      blobs: [
+        [W * 0.22, H * 0.2, 120, pal.glow, 0.35],
+        [W * 0.78, H * 0.28, 100, pal.warm, 0.28],
+      ],
+      extras: `<rect x="${W * 0.48}" y="${H * 0.32}" width="160" height="110" fill="#0e1014" stroke="${pal.accent}" stroke-width="2"/>
+        <rect x="${W * 0.52}" y="${H * 0.4}" width="120" height="6" fill="${pal.glow}" opacity="0.35"/>
+        <rect x="${W * 0.52}" y="${H * 0.5}" width="90" height="6" fill="${pal.glow}" opacity="0.25"/>
+        <rect x="${W * 0.52}" y="${H * 0.6}" width="70" height="6" fill="${pal.glow}" opacity="0.2"/>`,
+    });
+    results.push(await writeWebp("newspaper/hero.webp", svg, W, H));
+  }
+  {
+    const pal = PAL.spireyard;
+    const svg = sceneSvg(W, H, pal, {
+      seed: 55,
+      ground: 0.7,
+      blobs: [
+        [W * 0.3, H * 0.22, 110, pal.glow, 0.35],
+        [W * 0.7, H * 0.3, 90, pal.accent, 0.28],
+      ],
+      extras: `<line x1="${W * 0.2}" y1="${H * 0.35}" x2="${W * 0.2}" y2="${H * 0.75}" stroke="${pal.accent}" stroke-width="2"/>
+        <circle cx="${W * 0.2}" cy="${H * 0.4}" r="6" fill="${pal.glow}" opacity="0.5"/>
+        <circle cx="${W * 0.2}" cy="${H * 0.55}" r="6" fill="${pal.glow}" opacity="0.4"/>
+        <circle cx="${W * 0.2}" cy="${H * 0.7}" r="6" fill="${pal.glow}" opacity="0.35"/>
+        <rect x="${W * 0.28}" y="${H * 0.37}" width="140" height="10" fill="#12141a" stroke="${pal.accent}" stroke-width="1"/>
+        <rect x="${W * 0.28}" y="${H * 0.52}" width="180" height="10" fill="#12141a" stroke="${pal.accent}" stroke-width="1"/>
+        <rect x="${W * 0.28}" y="${H * 0.67}" width="110" height="10" fill="#12141a" stroke="${pal.accent}" stroke-width="1"/>`,
+    });
+    results.push(await writeWebp("timeline/hero.webp", svg, W, H));
   }
 
   const made = results.filter((r) => !r.skipped);

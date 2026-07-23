@@ -28,6 +28,7 @@ export function licenseEffectLabels(license: LicenseDef): string[] {
     const fam = license.oddsFamilies?.join("/") ?? "crime";
     perks.push(`+${license.oddsBonus}% ${fam} odds`);
   }
+  if (license.hospitalTimeReduction) perks.push(`−${license.hospitalTimeReduction}% hospital time`);
   if (license.weeklyStipend) perks.push(`$${license.weeklyStipend}/wk stipend`);
   if (license.legitimacyGain) perks.push(`+${license.legitimacyGain} legitimacy on earn`);
   return perks;
@@ -38,11 +39,13 @@ export function licensePerkSum(licenseIds: string[]): {
   bankInterestBonus: number;
   oddsBonus: number;
   weeklyStipend: number;
+  hospitalTimeReduction: number;
 } {
   let jobPayBonus = 0;
   let bankInterestBonus = 0;
   let oddsBonus = 0;
   let weeklyStipend = 0;
+  let hospitalTimeReduction = 0;
   for (const id of licenseIds) {
     const l = getLicense(id);
     if (!l) continue;
@@ -50,8 +53,9 @@ export function licensePerkSum(licenseIds: string[]): {
     bankInterestBonus += l.bankInterestBonus ?? 0;
     oddsBonus += l.oddsBonus ?? 0;
     weeklyStipend += l.weeklyStipend ?? 0;
+    hospitalTimeReduction += l.hospitalTimeReduction ?? 0;
   }
-  return { jobPayBonus, bankInterestBonus, oddsBonus, weeklyStipend };
+  return { jobPayBonus, bankInterestBonus, oddsBonus, weeklyStipend, hospitalTimeReduction };
 }
 
 export function licenseJobPayBonus(licenseIds: string[]): number {
@@ -64,6 +68,10 @@ export function licenseBankInterestBonus(licenseIds: string[]): number {
 
 export function licenseWeeklyStipend(licenseIds: string[]): number {
   return licensePerkSum(licenseIds).weeklyStipend;
+}
+
+export function licenseHospitalTimeReduction(licenseIds: string[]): number {
+  return licensePerkSum(licenseIds).hospitalTimeReduction;
 }
 
 export function licenseOddsMod(

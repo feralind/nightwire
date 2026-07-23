@@ -75,6 +75,14 @@ export function IconHospital(p: IconProps) {
     </svg>
   );
 }
+export function IconBody(p: IconProps) {
+  return (
+    <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden className={p.className}>
+      <circle cx="8" cy="3.5" r="1.5" {...stroke} />
+      <path d="M8 5.5v5M5 7.5h6M5.5 14L8 10.5 10.5 14" {...stroke} />
+    </svg>
+  );
+}
 export function IconJail(p: IconProps) {
   return (
     <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden className={p.className}>
@@ -186,6 +194,23 @@ export function IconBook(p: IconProps) {
     </svg>
   );
 }
+export function IconPaper(p: IconProps) {
+  return (
+    <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden className={p.className}>
+      <path d="M4 2h6l3 3v9H4V2zM10 2v3h3M6 7h5M6 10h5M6 13h3" {...stroke} />
+    </svg>
+  );
+}
+export function IconTimeline(p: IconProps) {
+  return (
+    <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden className={p.className}>
+      <path d="M3 3v10M3 5h5M3 8h8M3 11h4" {...stroke} />
+      <circle cx="3" cy="5" r="1.2" fill="currentColor" stroke="none" />
+      <circle cx="3" cy="8" r="1.2" fill="currentColor" stroke="none" />
+      <circle cx="3" cy="11" r="1.2" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
 export function IconRace(p: IconProps) {
   return (
     <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden className={p.className}>
@@ -237,6 +262,7 @@ const MAP: Record<string, (p: IconProps) => JSX.Element> = {
   "/stats": IconStats,
   "/education": IconEdu,
   "/hospital": IconHospital,
+  "/body": IconBody,
   "/jail": IconJail,
   "/jobs": IconJob,
   "/gigs": IconGig,
@@ -258,6 +284,8 @@ const MAP: Record<string, (p: IconProps) => JSX.Element> = {
   "/awards": IconStar,
   "/power": IconPower,
   "/codex": IconBook,
+  "/newspaper": IconPaper,
+  "/timeline": IconTimeline,
   "/settings": IconSettings,
 };
 

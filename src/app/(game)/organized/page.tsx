@@ -1,7 +1,8 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import { HEISTS } from "@/content/heists";
-import { getDistrict, getItem } from "@/content/catalog";
+import { DISTRICTS, getDistrict, getItem } from "@/content/catalog";
 import {
   boardOnCooldown,
   canExecuteChoice,
@@ -21,9 +22,13 @@ import { GameButton } from "@/components/ui/GameButton";
 import { RequirementsBox } from "@/components/ui/RequirementsBox";
 import { HEIST_ART, HEIST_HERO, PageHero } from "@/components/ui/Visuals";
 import { useGame } from "@/store/gameStore";
-import type { HeistDef, HeistStageDef } from "@/game/types";
+import type { DistrictId, HeistDef, HeistRisk, HeistStageDef } from "@/game/types";
 import styles from "../tables.module.css";
 import boardStyles from "./organized.module.css";
+
+type DistrictFilter = "all" | DistrictId;
+type RiskFilter = "all" | HeistRisk;
+type LockFilter = "all" | "unlocked" | "locked";
 
 function stageCostBits(stage: HeistStageDef): string {
   const bits = [
@@ -168,8 +173,23 @@ function BoardCard({ heist }: { heist: HeistDef }) {
 
 export default function OrganizedPage() {
   const s = useGame();
-  const unlocked = HEISTS.filter((h) => isHeistUnlocked(h, s));
-  const locked = HEISTS.filter((h) => !isHeistUnlocked(h, s));
+  const [district, setDistrict] = useState<DistrictFilter>("all");
+  const [risk, setRisk] = useState<RiskFilter>("all");
+  const [lock, setLock] = useState<LockFilter>("all");
+
+  const filtered = useMemo(() => {
+    return HEISTS.filter((h) => {
+      if (district !== "all" && h.district !== district) return false;
+      if (risk !== "all" && h.risk !== risk) return false;
+      const unlocked = isHeistUnlocked(h, s);
+      if (lock === "unlocked" && !unlocked) return false;
+      if (lock === "locked" && unlocked) return false;
+      return true;
+    });
+  }, [district, risk, lock, s]);
+
+  const unlocked = filtered.filter((h) => isHeistUnlocked(h, s));
+  const locked = filtered.filter((h) => !isHeistUnlocked(h, s));
   const live = unlocked.filter((h) => getPrepBoard(s, h.id).executePhase);
 
   return (
@@ -184,33 +204,78 @@ export default function OrganizedPage() {
 
       <Module
         title="Ops board"
-        footer={`${HEISTS.length}/24 boards live · Path toward full V2 set · Completions ${s.lifetime.heistsCompleted ?? 0}`}
+        tabs={
+          <div className={boardStyles.filters}>
+            <div className={boardStyles.tabs}>
+              <button
+                type="button"
+                className={district === "all" ? boardStyles.tabActive : boardStyles.tab}
+                onClick={() => setDistrict("all")}
+              >
+                All
+              </button>
+              {DISTRICTS.map((d) => (
+                <button
+                  key={d.id}
+                  type="button"
+                  className={district === d.id ? boardStyles.tabActive : boardStyles.tab}
+                  onClick={() => setDistrict(d.id)}
+                >
+                  {d.name}
+                </button>
+              ))}
+            </div>
+            <div className={boardStyles.tabs}>
+              {(["all", "moderate", "high", "extreme"] as const).map((r) => (
+                <button
+                  key={r}
+                  type="button"
+                  className={risk === r ? boardStyles.tabActive : boardStyles.tab}
+                  onClick={() => setRisk(r)}
+                >
+                  {r === "all" ? "Any risk" : r}
+                </button>
+              ))}
+            </div>
+            <div className={boardStyles.tabs}>
+              {([
+                ["all", "All boards"],
+                ["unlocked", "Unlocked"],
+                ["locked", "Locked"],
+              ] as const).map(([id, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  className={lock === id ? boardStyles.tabActive : boardStyles.tab}
+                  onClick={() => setLock(id)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        }
+        footer={`${HEISTS.length}/24 boards live · Showing ${filtered.length} · Completions ${s.lifetime.heistsCompleted ?? 0}`}
       >
         {live.length > 0 && (
           <p className={styles.sub} style={{ marginBottom: 8 }}>
             Live execute: {live.map((h) => h.name).join(", ")}
           </p>
         )}
-        {unlocked.length === 0 ? (
-          <p className={styles.sub}>No boards unlocked yet. Raise level or finish the course gates below.</p>
+        {filtered.length === 0 ? (
+          <p className={styles.sub}>No boards match these filters.</p>
+        ) : unlocked.length === 0 && lock !== "locked" ? (
+          <p className={styles.sub}>No unlocked boards in this filter. Raise level, jobs, courses, or properties.</p>
         ) : (
           <div className={boardStyles.list}>
-            {unlocked.map((h) => (
-              <BoardCard key={h.id} heist={h} />
-            ))}
+            {(lock === "locked" ? locked : lock === "unlocked" ? unlocked : [...unlocked, ...locked]).map(
+              (h) => (
+                <BoardCard key={h.id} heist={h} />
+              )
+            )}
           </div>
         )}
       </Module>
-
-      {locked.length > 0 && (
-        <Module title="Locked boards">
-          <div className={boardStyles.list}>
-            {locked.map((h) => (
-              <BoardCard key={h.id} heist={h} />
-            ))}
-          </div>
-        </Module>
-      )}
     </div>
   );
 }

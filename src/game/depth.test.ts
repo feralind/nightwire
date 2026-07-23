@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { AWARDS, CONTACTS, PROPERTIES } from "@/content/catalog";
 import { awardConditionMet, evaluateAwards } from "./awards";
-import { applyContactAction, contactTipOddsBonus, isContactUnlocked } from "./contacts";
+import { applyContactAction, applyMentorReply, contactTipOddsBonus, isContactUnlocked } from "./contacts";
 import { canBuyProperty, weeklyPropertyNet, landlordRentBonus } from "./properties";
 import { applyRivalAwayPressure, maybeApplyRivalEvents, rivalFlagCount } from "./rival";
 import { applyCatchUp } from "./tick";
@@ -103,15 +103,28 @@ describe("awards", () => {
 });
 
 describe("contacts", () => {
-  it("ships six V0 contacts with unlock gates", () => {
-    expect(CONTACTS.length).toBe(6);
+  it("ships twelve V2 contacts with unlock gates", () => {
+    expect(CONTACTS.length).toBe(12);
     const fresh = createInitialState({ created: true });
     expect(isContactUnlocked(CONTACTS.find((c) => c.id === "reed")!, fresh)).toBe(true);
     expect(isContactUnlocked(CONTACTS.find((c) => c.id === "nix")!, fresh)).toBe(false);
+    expect(isContactUnlocked(CONTACTS.find((c) => c.id === "wren")!, fresh)).toBe(false);
     expect(
       isContactUnlocked(CONTACTS.find((c) => c.id === "nix")!, {
         ...fresh,
         lifetime: { ...fresh.lifetime, crimesAttempted: 5 },
+      })
+    ).toBe(true);
+    expect(
+      isContactUnlocked(CONTACTS.find((c) => c.id === "joss")!, {
+        ...fresh,
+        lifetime: { ...fresh.lifetime, shiftsWorked: 5 },
+      })
+    ).toBe(true);
+    expect(
+      isContactUnlocked(CONTACTS.find((c) => c.id === "haze")!, {
+        ...fresh,
+        lifetime: { ...fresh.lifetime, peakHeat: 40 },
       })
     ).toBe(true);
   });
@@ -151,6 +164,46 @@ describe("contacts", () => {
     expect(result).not.toBeNull();
     expect(result!.state.investigation).toBe(1);
     expect(result!.state.clean).toBe(base.clean - 1200);
+  });
+
+  it("Wren fence skim converts street to clean", () => {
+    const base = createInitialState({
+      created: true,
+      street: 800,
+      clean: 100,
+      contacts: { wren: { favor: 3, uses: 0, lastAt: null } },
+      lifetime: {
+        ...createInitialState().lifetime,
+        districtsVisited: ["oldcommons"],
+      },
+      district: "oldcommons",
+    });
+    const result = applyContactAction(base, "wren", "ask_favor");
+    expect(result).not.toBeNull();
+    expect(result!.state.street).toBe(base.street - 400);
+    expect(result!.state.clean).toBe(base.clean + 260);
+  });
+
+  it("Pike retain halves remaining jail time", () => {
+    const now = Date.now();
+    const base = createInitialState({
+      created: true,
+      clean: 1000,
+      jailUntil: now + 4 * 3600 * 1000,
+      lifetime: { ...createInitialState().lifetime, timesJailed: 1 },
+    });
+    const result = applyContactAction(base, "pike", "retain", now);
+    expect(result).not.toBeNull();
+    const remaining = result!.state.jailUntil! - now;
+    expect(remaining).toBe(2 * 3600 * 1000);
+  });
+
+  it("mentor reply choices apply soft effects", () => {
+    const base = createInitialState({ created: true, stress: 30, heat: 20, happy: 400 });
+    const result = applyMentorReply(base, "quiet");
+    expect(result).not.toBeNull();
+    expect(result!.state.heat).toBeLessThan(base.heat);
+    expect(result!.state.contacts.reed.favor).toBeGreaterThanOrEqual(1);
   });
 });
 

@@ -16,6 +16,7 @@ import {
   stashCapacity,
   upgradeRoomReasons,
 } from "@/game/safehouse";
+import { canDoLeisure } from "@/game/body";
 import { formatMoney } from "@/game/formulas";
 import { Module } from "@/components/ui/Module";
 import { GameButton } from "@/components/ui/GameButton";
@@ -39,6 +40,7 @@ export default function SafehousePage() {
     lifeMax: s.lifeMax,
     wounds: s.wounds,
   });
+  const cotOk = canDoLeisure("cot_rest", s);
 
   return (
     <div>
@@ -197,6 +199,25 @@ export default function SafehousePage() {
             >
               Bench repair
             </GameButton>
+          </>
+        )}
+      </Module>
+
+      <Module title="Cot rest" footer="Active rest — shares leisure cooldown with /body">
+        {rooms.cot < 1 ? (
+          <p className={styles.sub}>
+            Build Cot for passive regen and the rest action. Full leisure menu lives on{" "}
+            <Link href="/body">Body</Link>.
+          </p>
+        ) : (
+          <>
+            <p className={styles.sub}>
+              Eyes shut on your own mattress. Stress drops hard; happy climbs with Cot level.
+            </p>
+            <GameButton disabled={!cotOk} onClick={() => s.doLeisure("cot_rest")}>Rest on cot</GameButton>
+            <p className={styles.sub} style={{ marginTop: 8 }}>
+              Dive booth / cafe sit / clinic also on <Link href="/body">Body</Link>.
+            </p>
           </>
         )}
       </Module>

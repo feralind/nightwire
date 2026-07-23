@@ -39,7 +39,7 @@ export default function ContactsPage() {
 
       <Module title="Active tips" footer="Tips expire. Crime odds show Contact tip when live.">
         {tips.length === 0 ? (
-          <p className={styles.sub}>No live intel. Buy a tip from Kilo or Nix when unlocked.</p>
+          <p className={styles.sub}>No live intel. Buy a tip from Kilo, Nix, or Wren when unlocked.</p>
         ) : (
           <ul>
             {tips.map((t) => (

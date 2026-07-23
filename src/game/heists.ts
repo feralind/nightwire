@@ -1,5 +1,6 @@
-import { getCourse, getDistrict, getItem, getProperty } from "@/content/catalog";
+import { getCourse, getDistrict, getItem, getJob, getProperty } from "@/content/catalog";
 import { getHeist, HEISTS } from "@/content/heists";
+import { applyHospitalDuration } from "@/game/careers";
 import { clamp, formatMoney } from "@/game/formulas";
 import { rollD10000, unit01 } from "@/game/rng";
 import type {
@@ -133,6 +134,15 @@ function maybeLoseStagedItems(
   return { state: s, board: { ...board, stagedItems: staged }, lost };
 }
 
+function jobMeetsRequirement(requiredJobId: string, currentJobId: string | null): boolean {
+  if (!currentJobId) return false;
+  if (currentJobId === requiredJobId) return true;
+  const required = getJob(requiredJobId);
+  const current = getJob(currentJobId);
+  if (!required || !current) return false;
+  return current.career === required.career && current.rank >= required.rank;
+}
+
 export function heistUnlockReasons(heist: HeistDef, s: GameState): HeistReqReason[] {
   const reasons: HeistReqReason[] = [];
   if (heist.requiresLevel && s.level < heist.requiresLevel) {
@@ -145,6 +155,25 @@ export function heistUnlockReasons(heist: HeistDef, s: GameState): HeistReqReaso
   if (heist.requiresProperty && !s.ownedProperties.includes(heist.requiresProperty)) {
     const p = getProperty(heist.requiresProperty);
     reasons.push({ label: `Own ${p?.name ?? heist.requiresProperty}`, href: "/properties" });
+  }
+  if (heist.requiresJob && !jobMeetsRequirement(heist.requiresJob, s.jobId)) {
+    const job = getJob(heist.requiresJob);
+    reasons.push({
+      label: `Job: ${job?.title ?? heist.requiresJob}+`,
+      href: "/jobs",
+    });
+  }
+  if (heist.requiresVisitedDistrict) {
+    const visited =
+      s.district === heist.requiresVisitedDistrict ||
+      (s.lifetime.districtsVisited ?? []).includes(heist.requiresVisitedDistrict);
+    if (!visited) {
+      const d = getDistrict(heist.requiresVisitedDistrict);
+      reasons.push({
+        label: `Visit ${d?.name ?? heist.requiresVisitedDistrict}`,
+        href: "/city",
+      });
+    }
   }
   return reasons;
 }
@@ -532,7 +561,8 @@ export function applyExecuteChoice(
       lines.push("Uniforms closed the window.");
     } else if (unit01(s.seed, `heisthosp:${heistId}`, s.actionIndex) < 0.4) {
       title = "HOSPITALIZED";
-      s.hospitalUntil = now + 25 * 60 * 1000;
+      s.hospitalUntil =
+        now + applyHospitalDuration(25 * 60 * 1000, s.completedCourses, s.licenses);
       s.hospitalReason = `Heist fail: ${heist.name}`;
       s.life = Math.max(1, s.life - 20);
       lines.push("Bad breach. Lights out.");

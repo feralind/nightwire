@@ -45,6 +45,7 @@ const NAV = [
       { href: "/education", label: "Education" },
       { href: "/licenses", label: "Licenses" },
       { href: "/hospital", label: "Hospital" },
+      { href: "/body", label: "Body" },
       { href: "/jail", label: "Jail" },
     ],
   },
@@ -91,6 +92,8 @@ const NAV = [
       { href: "/awards", label: "Awards" },
       { href: "/power", label: "Power Tracks" },
       { href: "/codex", label: "Codex" },
+      { href: "/newspaper", label: "Newspaper" },
+      { href: "/timeline", label: "Timeline" },
       { href: "/settings", label: "Settings" },
     ],
   },
@@ -174,6 +177,7 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
       courseProgressHours: st.courseProgressHours,
       heat: st.heat,
       stress: st.stress,
+      wounds: st.wounds,
       completedCourses: st.completedCourses,
       jobId: st.jobId,
       shiftsThisWeek: st.shiftsThisWeek,
@@ -240,6 +244,11 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
   }
   if (s.heat > 40) statusPills.push(`Heat ${heatBand(s.heat)}`);
   if (s.stress > 50) statusPills.push(`Stress ${Math.floor(s.stress)}`);
+  if (s.wounds.arm > 0 || s.wounds.leg > 0) {
+    statusPills.push(
+      `Wound ${[s.wounds.arm ? "arm" : null, s.wounds.leg ? "leg" : null].filter(Boolean).join("/")}`
+    );
+  }
 
   const headline = HEADLINES[Math.floor(now / 15000) % HEADLINES.length];
 

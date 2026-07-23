@@ -47,6 +47,15 @@ export default function ProfilePage() {
               Heat {s.heat.toFixed(0)} · Stress {s.stress.toFixed(0)} · Happy {s.happy.toFixed(0)} · Inv{" "}
               {s.investigation}
             </div>
+            <div style={{ marginTop: 6 }}>
+              Wounds:{" "}
+              {s.wounds.arm || s.wounds.leg
+                ? [s.wounds.arm ? `arm×${s.wounds.arm}` : null, s.wounds.leg ? `leg×${s.wounds.leg}` : null]
+                    .filter(Boolean)
+                    .join(", ")
+                : "none"}{" "}
+              · <Link href="/body">Body diagram →</Link>
+            </div>
             {layingLow && (
               <div style={{ color: "var(--text-warn)", marginTop: 6 }}>
                 Laying low — {formatMmSs(((s.laylowUntil as number) - now) / 1000)} left

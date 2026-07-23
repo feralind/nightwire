@@ -73,6 +73,15 @@ export function applyCatchUp(state: GameState, now = Date.now()): TickResult {
   const city: string[] = [];
   const progress: string[] = [];
 
+  // Jail pressure — stress climbs while locked (soft; release / bail still the exits)
+  if (s.jailUntil && now < s.jailUntil && hours >= 0.5) {
+    const jailClimb = hours * 2.5;
+    if (jailClimb > 0) {
+      s.stress = Math.min(100, s.stress + jailClimb);
+      city.push(`Jail stress +${Math.floor(jailClimb)}`);
+    }
+  }
+
   if (energyGain) legal.push(`Energy +${energyGain}`);
   if (nerveGain) legal.push(`Nerve +${nerveGain}`);
 

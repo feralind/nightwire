@@ -74,12 +74,18 @@ export function awardConditionMet(id: string, s: GameState): boolean {
       return s.lifetime.contactUses >= 1;
     case "tip_bought":
       return s.lifetime.tipsBought >= 1;
+    case "wide_rolodex":
+      return Object.values(s.contacts).filter((c) => c.uses > 0).length >= 6;
     case "ten_grand_glow":
       return networth(s) >= 10000 || s.lifetime.peakNetworth >= 10000;
     case "first_fail":
       return crimeAttempts(s) >= 1 && crimeWins(s) < crimeAttempts(s);
     case "dock_cert":
       return s.completedCourses.includes("hl1");
+    case "med_wing":
+      return s.completedCourses.includes("mc1");
+    case "pins_licensed":
+      return s.completedCourses.includes("le1");
     case "interest_drip":
       return s.lifetime.interestEarned >= 50;
     case "first_board":
@@ -143,12 +149,18 @@ export function awardHint(id: string): string {
       return "Use any contact action";
     case "tip_bought":
       return "Buy a tip or spend a favor marker";
+    case "wide_rolodex":
+      return "Use 6 different contacts";
     case "ten_grand_glow":
       return "Networth $10,000";
     case "first_fail":
       return "Fail a crime attempt";
     case "dock_cert":
       return "Finish Dock Safety";
+    case "med_wing":
+      return "Finish First Aid (mc1)";
+    case "pins_licensed":
+      return "Finish Legal Locksmith (le1)";
     case "interest_drip":
       return "Earn $50 bank interest";
     case "first_board":

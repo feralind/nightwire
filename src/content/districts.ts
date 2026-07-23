@@ -1,6 +1,6 @@
 import type { DistrictDef } from "@/game/types";
 
-/** V1 — 6 playable districts (Neon Pier / Red Clinic are V3) */
+/** V3 floor — 8 districts (Neon Pier + Red Clinic Ward added) */
 export const DISTRICTS: DistrictDef[] = [
   {
     id: "glassrow",
@@ -55,5 +55,23 @@ export const DISTRICTS: DistrictDef[] = [
     travelSeconds: 140,
     shopStyle: "tools",
     risk: "Night mugs",
+  },
+  {
+    id: "neonpier",
+    name: "Neon Pier",
+    crimeBias: { petty: 12, street: 6 },
+    travelCost: 55,
+    travelSeconds: 170,
+    shopStyle: "black",
+    risk: "Tourist heat",
+  },
+  {
+    id: "redclinic",
+    name: "Red Clinic Ward",
+    crimeBias: { street: 10, heavy: 5 },
+    travelCost: 48,
+    travelSeconds: 165,
+    shopStyle: "medical",
+    risk: "Sirens close",
   },
 ];

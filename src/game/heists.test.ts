@@ -15,9 +15,27 @@ import {
 import { createInitialState, normalizeState } from "@/game/state";
 
 describe("organized heist content", () => {
-  it("ships 8 boards toward the V2 floor of 24", () => {
-    expect(HEISTS).toHaveLength(8);
-    expect(new Set(HEISTS.map((h) => h.id)).size).toBe(8);
+  const STABLE_EIGHT = [
+    "tram_skim",
+    "yard_boost",
+    "commons_sweep",
+    "bay_pierce",
+    "ward_diversion",
+    "spire_float",
+    "soft_house_run",
+    "bond_desk",
+  ];
+
+  it("ships the full V2 floor of 24 boards", () => {
+    expect(HEISTS).toHaveLength(24);
+    expect(new Set(HEISTS.map((h) => h.id)).size).toBe(24);
+  });
+
+  it("keeps the original eight board ids stable", () => {
+    for (const id of STABLE_EIGHT) {
+      expect(getHeist(id)).toBeDefined();
+    }
+    expect(HEISTS.slice(0, 8).map((h) => h.id)).toEqual(STABLE_EIGHT);
   });
 
   it("gives every board the intel→crew→kit→window→execute spine", () => {
@@ -28,8 +46,23 @@ describe("organized heist content", () => {
     }
   });
 
-  it("covers all six districts", () => {
-    expect(new Set(HEISTS.map((h) => h.district)).size).toBe(6);
+  it("covers all six districts evenly", () => {
+    const byDistrict = new Map<string, number>();
+    for (const h of HEISTS) {
+      byDistrict.set(h.district, (byDistrict.get(h.district) ?? 0) + 1);
+    }
+    expect(byDistrict.size).toBe(6);
+    for (const count of byDistrict.values()) {
+      expect(count).toBe(4);
+    }
+  });
+
+  it("varies unlock gates across level, course, property, job, and district visit", () => {
+    expect(HEISTS.some((h) => h.requiresLevel)).toBe(true);
+    expect(HEISTS.some((h) => h.requiresCourse)).toBe(true);
+    expect(HEISTS.some((h) => h.requiresProperty)).toBe(true);
+    expect(HEISTS.some((h) => h.requiresJob)).toBe(true);
+    expect(HEISTS.some((h) => h.requiresVisitedDistrict)).toBe(true);
   });
 });
 
@@ -53,6 +86,33 @@ describe("heist unlock gates", () => {
     expect(heistUnlockReasons(heist, s).some((r) => r.label.includes("Soft-House"))).toBe(true);
     expect(
       isHeistUnlocked(heist, { ...s, ownedProperties: ["dr_safe"] })
+    ).toBe(true);
+  });
+
+  it("requires retail Shift Lead+ for neon_till", () => {
+    const heist = getHeist("neon_till")!;
+    const s = createInitialState({ created: true, level: 3, jobId: null });
+    expect(isHeistUnlocked(heist, s)).toBe(false);
+    expect(heistUnlockReasons(heist, s).some((r) => r.label.includes("Shift Lead"))).toBe(true);
+    expect(isHeistUnlocked(heist, { ...s, jobId: "retail_2" })).toBe(true);
+    expect(isHeistUnlocked(heist, { ...s, jobId: "retail_3" })).toBe(true);
+  });
+
+  it("requires visiting OldCommons for stoop_tax", () => {
+    const heist = getHeist("stoop_tax")!;
+    const s = createInitialState({
+      created: true,
+      level: 2,
+      district: "glassrow",
+    });
+    s.lifetime.districtsVisited = ["glassrow"];
+    expect(isHeistUnlocked(heist, s)).toBe(false);
+    expect(heistUnlockReasons(heist, s)[0]?.label).toMatch(/OldCommons|Old Commons/i);
+    expect(
+      isHeistUnlocked(heist, {
+        ...s,
+        lifetime: { ...s.lifetime, districtsVisited: ["glassrow", "oldcommons"] },
+      })
     ).toBe(true);
   });
 });

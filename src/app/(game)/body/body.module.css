@@ -1,0 +1,166 @@
+.diagram {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+.silhouette {
+  position: relative;
+  width: 120px;
+  height: 200px;
+  margin: 0 auto;
+  border: 1px solid var(--border);
+  background:
+    radial-gradient(ellipse 42% 18% at 50% 14%, #2a3038 0%, transparent 70%),
+    linear-gradient(180deg, #1a1e24 0%, #12161a 100%);
+  border-radius: var(--r1);
+}
+
+.head {
+  position: absolute;
+  left: 50%;
+  top: 10px;
+  width: 36px;
+  height: 36px;
+  margin-left: -18px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: #242a32;
+}
+
+.torso {
+  position: absolute;
+  left: 50%;
+  top: 50px;
+  width: 52px;
+  height: 70px;
+  margin-left: -26px;
+  border: 1px solid var(--border);
+  background: #1e242c;
+  border-radius: 4px;
+}
+
+.armL,
+.armR {
+  position: absolute;
+  top: 56px;
+  width: 16px;
+  height: 64px;
+  border: 1px solid var(--border);
+  background: #1e242c;
+  border-radius: 3px;
+}
+
+.armL {
+  left: 18px;
+}
+
+.armR {
+  right: 18px;
+}
+
+.legL,
+.legR {
+  position: absolute;
+  top: 122px;
+  width: 18px;
+  height: 64px;
+  border: 1px solid var(--border);
+  background: #1e242c;
+  border-radius: 3px;
+}
+
+.legL {
+  left: 42px;
+}
+
+.legR {
+  right: 42px;
+}
+
+.dot {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.5);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.dotOk {
+  background: #3a8f6e;
+}
+
+.dotHurt {
+  background: #c45a4a;
+}
+
+.dotArmL {
+  left: 21px;
+  top: 78px;
+}
+
+.dotArmR {
+  right: 21px;
+  top: 78px;
+}
+
+.dotLegL {
+  left: 46px;
+  top: 148px;
+}
+
+.dotLegR {
+  right: 46px;
+  top: 148px;
+}
+
+.bandBar {
+  height: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-inset);
+  border-radius: 2px;
+  overflow: hidden;
+  margin: 6px 0 10px;
+}
+
+.bandFill {
+  height: 100%;
+  background: linear-gradient(90deg, #3a8f6e 0%, #c9a227 55%, #c45a4a 100%);
+}
+
+.leisureGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.leisureCard {
+  border: 1px solid var(--border);
+  background: linear-gradient(165deg, #222228 0%, var(--bg-panel) 100%);
+  border-radius: var(--r1);
+  padding: 10px;
+}
+
+.leisureName {
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0 0 4px;
+}
+
+.meta {
+  color: var(--text-dim);
+  font-size: 11px;
+  margin: 0 0 8px;
+}
+
+@media (max-width: 700px) {
+  .diagram {
+    grid-template-columns: 1fr;
+  }
+
+  .leisureGrid {
+    grid-template-columns: 1fr;
+  }
+}

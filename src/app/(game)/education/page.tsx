@@ -45,7 +45,7 @@ export default function EducationPage() {
     <div className={hub.wrap}>
       <PageHero
         title="Education campus"
-        subtitle="Study while you earn — courses unlock crimes, pay, and promotions."
+        subtitle="Study while you earn — five schools, stacked certs, and unlocks that keep the city open."
         tone="campus"
         image="/art/campus/hero.webp"
         tall
@@ -233,6 +233,9 @@ export default function EducationPage() {
               {transcript.oddsBonus ? <li>Crime odds crumbs +{transcript.oddsBonus}</li> : null}
               {transcript.softCapBonus ? <li>Gym soft cap +{transcript.softCapBonus}</li> : null}
               {transcript.bankInterestBonus ? <li>Bank interest +{transcript.bankInterestBonus}%</li> : null}
+              {transcript.hospitalTimeReduction ? (
+                <li>Hospital time −{transcript.hospitalTimeReduction}%</li>
+              ) : null}
               {unlockedNames ? <li>Content unlocked: {unlockedNames}</li> : null}
             </ul>
           </>
@@ -264,6 +267,9 @@ export default function EducationPage() {
                 <li>License bank interest +{licenseSum.bankInterestBonus}%</li>
               ) : null}
               {licenseSum.oddsBonus ? <li>License odds crumbs +{licenseSum.oddsBonus}</li> : null}
+              {licenseSum.hospitalTimeReduction ? (
+                <li>License hospital time −{licenseSum.hospitalTimeReduction}%</li>
+              ) : null}
               {licenseSum.weeklyStipend ? <li>Weekly stipend ${licenseSum.weeklyStipend}</li> : null}
             </ul>
           </>

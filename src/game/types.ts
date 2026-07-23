@@ -4,7 +4,9 @@ export type DistrictId =
   | "docksreach"
   | "ashcourt"
   | "spireyard"
-  | "oldcommons";
+  | "oldcommons"
+  | "neonpier"
+  | "redclinic";
 
 export type CrimeTier = "petty" | "street" | "heavy";
 
@@ -66,6 +68,8 @@ export type CourseDef = {
   gigPayBonus?: number;
   softCapBonus?: number;
   bankInterestBonus?: number;
+  /** Percent cut on new hospital stays (caps stacked elsewhere) */
+  hospitalTimeReduction?: number;
   requiresLevel?: number;
   requiresCourse?: string;
 };
@@ -81,6 +85,8 @@ export type LicenseDef = {
   bankInterestBonus?: number;
   oddsBonus?: number;
   oddsFamilies?: Array<"petty" | "street" | "heavy">;
+  /** Percent cut on new hospital stays */
+  hospitalTimeReduction?: number;
   /** Clean $/week while holding (scaled by hours in tick) */
   weeklyStipend?: number;
   /** One-shot legitimacy when first earned (not on backfill) */
@@ -244,6 +250,10 @@ export type HeistDef = {
   requiresCourse?: string;
   /** Soft-house / staging property gate */
   requiresProperty?: string;
+  /** Exact job or same career at equal/higher rank */
+  requiresJob?: string;
+  /** Must have visited this district at least once */
+  requiresVisitedDistrict?: DistrictId;
   payoutMin: number;
   payoutMax: number;
   xp: number;

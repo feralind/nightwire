@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { getItem } from "@/content/catalog";
+import { canDoLeisure } from "@/game/body";
 import { CollapsiblePanel } from "@/components/ui/CollapsiblePanel";
 import { GameButton } from "@/components/ui/GameButton";
 import { InfoRow, InfoRowBlock } from "@/components/ui/InfoRow";
@@ -21,6 +22,8 @@ export default function HospitalPage() {
     return item?.kind === "consumable" && (i.itemId.includes("med") || i.itemId === "painkillers" || i.itemId === "street_meds");
   });
   const lifePct = Math.round((s.life / s.lifeMax) * 100);
+  const clinicOk = canDoLeisure("clinic_chair", s, now);
+  const therapyOk = canDoLeisure("therapy", s, now);
 
   const beds = [
     { id: "A1", label: active ? "You" : "Empty", active },
@@ -72,6 +75,9 @@ export default function HospitalPage() {
                   Street meds
                 </GameButton>
               </div>
+              <p className={hub.sub} style={{ marginTop: 4 }}>
+                Calder (Contacts) can quiet-discharge — halves remaining ward time for $500 clean.
+              </p>
             </InfoRowBlock>
           ) : (
             <InfoRowBlock>
@@ -82,11 +88,28 @@ export default function HospitalPage() {
                 label="Wounds"
                 value={
                   s.wounds.arm || s.wounds.leg
-                    ? [s.wounds.arm ? "arm" : null, s.wounds.leg ? "leg" : null].filter(Boolean).join(", ")
+                    ? [s.wounds.arm ? `arm×${s.wounds.arm}` : null, s.wounds.leg ? `leg×${s.wounds.leg}` : null]
+                        .filter(Boolean)
+                        .join(", ")
                     : "None"
                 }
               />
-              <InfoRow label="Status" value="Discharged — come back when under" />
+              <InfoRow label="Stress" value={`${Math.floor(s.stress)} / 100`} />
+              <InfoRow label="Status" value="Discharged — outpatient on Body" />
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", padding: "8px 0" }}>
+                <GameButton variant="secondary" disabled={!clinicOk} onClick={() => s.doLeisure("clinic_chair")}>
+                  Clinic chair
+                </GameButton>
+                <GameButton variant="secondary" disabled={!therapyOk} onClick={() => s.doLeisure("therapy")}>
+                  Talk session
+                </GameButton>
+                <Link href="/body">
+                  <GameButton variant="secondary">Body status →</GameButton>
+                </Link>
+              </div>
+              <p className={hub.sub} style={{ marginTop: 4 }}>
+                Clinic chair and talk sessions share the leisure cooldown. Requirements show on /body if blocked.
+              </p>
             </InfoRowBlock>
           )}
         </CollapsiblePanel>

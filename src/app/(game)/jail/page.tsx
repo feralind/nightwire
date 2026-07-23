@@ -23,7 +23,7 @@ export default function JailPage() {
     <div className={hub.wrap}>
       <PageHero
         title="Jail"
-        subtitle="Wait it out or buy freedom — heat prices bail."
+        subtitle="Wait it out or buy freedom — heat prices bail. Stress climbs on the clock."
         tone="jail"
         image="/art/jail/block.webp"
         tall
@@ -51,7 +51,9 @@ export default function JailPage() {
                 Reason: {s.jailReason ?? "Arrest"} · Heat {heatBand(s.heat)} ({Math.floor(s.heat)}) · Investigation{" "}
                 {STAGE[s.investigation] ?? s.investigation}
               </p>
-              <p style={{ marginTop: 8 }}>Actions blocked until release or bail.</p>
+              <p style={{ marginTop: 8 }}>
+                Actions blocked until release or bail — except Pike&apos;s Cut time on Contacts ($700 clean, halves the clock).
+              </p>
               <p style={{ marginTop: 12 }}>
                 <GameButton disabled={s.clean < bail} onClick={() => s.payBail()}>
                   Pay bail ({formatMoney(bail)} clean)

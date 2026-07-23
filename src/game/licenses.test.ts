@@ -18,8 +18,8 @@ import { createInitialState, normalizeState } from "./state";
 
 describe("license catalog", () => {
   it("maps one license per campus course", () => {
-    expect(LICENSES).toHaveLength(6);
-    expect(COURSES).toHaveLength(6);
+    expect(LICENSES).toHaveLength(15);
+    expect(COURSES).toHaveLength(15);
     for (const course of COURSES) {
       const lic = licenseForCourse(course.id);
       expect(lic, `missing license for ${course.id}`).toBeDefined();

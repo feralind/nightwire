@@ -30,6 +30,26 @@ export type LogEntry = {
   kind: "system" | "diegetic" | "result";
 };
 
+export type TimelineKind =
+  | "arrival"
+  | "level"
+  | "rank"
+  | "award"
+  | "crime"
+  | "work"
+  | "heist"
+  | "rival"
+  | "city"
+  | "story";
+
+export type TimelineEntry = {
+  id: string;
+  kind: TimelineKind;
+  title: string;
+  detail: string;
+  ts: number;
+};
+
 export type OddsModifier = { label: string; value: number };
 
 /** Presentational Attempt ritual payload — does not change roll math */
@@ -168,8 +188,10 @@ export type GameState = {
   travelTarget: DistrictId | null;
   /** Lay-low timer — blocks street actions until expiry, then sheds investigation */
   laylowUntil: number | null;
-  /** Soft combat debuffs until hospital discharge or natural decay */
+  /** Soft combat debuffs until hospital discharge or natural decay (0–2 notches) */
   wounds: { arm: number; leg: number };
+  /** Shared cooldown for leisure / cot rest / outpatient chair */
+  leisureUntil: number | null;
   hospitalReason: string | null;
   jailReason: string | null;
 
@@ -237,6 +259,12 @@ export type GameState = {
   bazaar: { listings: { itemId: string; price: number; seller?: string }[]; day: number };
   directorEvent: { id: string; label: string; until: number } | null;
 
+  /** Faction reputation -100..100 */
+  factionRep: Record<string, number>;
+  /** Posted NPC bounties */
+  bounties: { npcId: string; payout: number; postedAt: number; expiresAt: number }[];
+  raceWins: number;
+
   lastCrimeId: string | null;
   lastJobId: string | null;
   lastGigId: string | null;
@@ -244,6 +272,8 @@ export type GameState = {
   lifetime: LifetimeStats;
   /** awardId → unlockedAt ms */
   unlockedAwards: Record<string, number>;
+  /** Persisted player milestones (normalize backfills from lifetime/awards) */
+  timeline: TimelineEntry[];
 
   density: "classic" | "comfortable";
 };
@@ -314,6 +344,7 @@ export function createInitialState(partial?: Partial<GameState>): GameState {
     travelTarget: null,
     laylowUntil: null,
     wounds: { arm: 0, leg: 0 },
+    leisureUntil: null,
     hospitalReason: null,
     jailReason: null,
     streetSpendVisit: 0,
@@ -361,6 +392,8 @@ export function createInitialState(partial?: Partial<GameState>): GameState {
         ashcourt: 0,
         spireyard: 0,
         oldcommons: 0,
+        neonpier: 0,
+        redclinic: 0,
       },
       politicalRung: 0,
       respect: 0,
@@ -370,11 +403,20 @@ export function createInitialState(partial?: Partial<GameState>): GameState {
     },
     bazaar: { listings: [], day: 0 },
     directorEvent: null,
+    factionRep: {
+      glass_syndicate: 0,
+      mill_iron: 0,
+      dock_covenant: 0,
+      civic_veil: 0,
+    },
+    bounties: [],
+    raceWins: 0,
     lastCrimeId: null,
     lastJobId: null,
     lastGigId: null,
     lifetime: emptyLifetime(district),
     unlockedAwards: {},
+    timeline: [],
     density: "classic",
   };
   const merged = { ...base, ...partial };
@@ -416,7 +458,11 @@ export function normalizeState(s: GameState): GameState {
   const safehouseRooms = normalizeSafehouseRooms(s.safehouseRooms);
   return {
     ...s,
-    wounds: s.wounds ?? { arm: 0, leg: 0 },
+    wounds: {
+      arm: Math.max(0, Math.min(2, Math.floor(s.wounds?.arm ?? 0))),
+      leg: Math.max(0, Math.min(2, Math.floor(s.wounds?.leg ?? 0))),
+    },
+    leisureUntil: s.leisureUntil ?? null,
     hospitalReason: s.hospitalReason ?? null,
     jailReason: s.jailReason ?? null,
     laylowUntil: s.laylowUntil ?? null,
@@ -430,6 +476,7 @@ export function normalizeState(s: GameState): GameState {
     licenses,
     lifetime,
     unlockedAwards: s.unlockedAwards ?? {},
+    timeline: s.timeline ?? [],
     ownedProperties,
     safehouseRooms,
     ritualDay: s.ritualDay ?? 0,

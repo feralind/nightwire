@@ -71,7 +71,7 @@ export default function GymPage() {
         image="/art/gym/hero.webp"
         tall
       />
-      <Module footer="4 tracks · diminishing returns after 3/day per stat">
+      <Module footer="4 tracks · diminishing returns after 3/day per stat · 4th+ or soft-cap = overtrain stress">
         <p className={styles.sub}>Energy: {Math.floor(energy)} · 5 per train</p>
         <div className={styles.grid}>
           {TRACKS.map((t) => (

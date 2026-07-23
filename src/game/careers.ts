@@ -2,6 +2,7 @@ import { COURSES, CRIMES, JOBS, getCourse, getCrime, getJob } from "@/content/ca
 import {
   licenseBankInterestBonus,
   licenseForCourse,
+  licenseHospitalTimeReduction,
   licenseOddsMod,
 } from "@/game/licenses";
 import type { CourseDef, JobDef } from "@/game/types";
@@ -159,6 +160,7 @@ export function coursePerkLabels(course: CourseDef): string[] {
   if (course.gigPayBonus) perks.push(`+${course.gigPayBonus}% gig pay`);
   if (course.softCapBonus) perks.push(`+${course.softCapBonus} gym soft cap`);
   if (course.bankInterestBonus) perks.push(`+${course.bankInterestBonus}% bank interest`);
+  if (course.hospitalTimeReduction) perks.push(`−${course.hospitalTimeReduction}% hospital time`);
   if (course.unlocks?.length) {
     perks.push(`Unlocks: ${courseUnlockLabels(course).join(", ")}`);
   }
@@ -173,6 +175,7 @@ export function transcriptPerkSum(completedCourseIds: string[]): {
   oddsBonus: number;
   softCapBonus: number;
   bankInterestBonus: number;
+  hospitalTimeReduction: number;
   unlockedCrimeIds: string[];
 } {
   let jobPayBonus = 0;
@@ -180,6 +183,7 @@ export function transcriptPerkSum(completedCourseIds: string[]): {
   let oddsBonus = 0;
   let softCapBonus = 0;
   let bankInterestBonus = 0;
+  let hospitalTimeReduction = 0;
   const unlockedCrimeIds: string[] = [];
   for (const id of completedCourseIds) {
     const c = getCourse(id);
@@ -189,6 +193,7 @@ export function transcriptPerkSum(completedCourseIds: string[]): {
     oddsBonus += c.oddsBonus ?? 0;
     softCapBonus += c.softCapBonus ?? 0;
     bankInterestBonus += c.bankInterestBonus ?? 0;
+    hospitalTimeReduction += c.hospitalTimeReduction ?? 0;
     if (c.unlocks) unlockedCrimeIds.push(...c.unlocks);
   }
   return {
@@ -197,8 +202,29 @@ export function transcriptPerkSum(completedCourseIds: string[]): {
     oddsBonus,
     softCapBonus,
     bankInterestBonus,
+    hospitalTimeReduction,
     unlockedCrimeIds: Array.from(new Set(unlockedCrimeIds)),
   };
+}
+
+/** Stacked hospital stay cut from courses + licenses, soft-capped at 50%. */
+export function hospitalTimeCutPct(
+  completedCourseIds: string[],
+  licenseIds: string[] = []
+): number {
+  const fromCourses = transcriptPerkSum(completedCourseIds).hospitalTimeReduction;
+  const fromLicenses = licenseHospitalTimeReduction(licenseIds);
+  return Math.min(50, fromCourses + fromLicenses);
+}
+
+/** Apply education/license hospital cut to a base duration in ms. */
+export function applyHospitalDuration(
+  baseMs: number,
+  completedCourseIds: string[],
+  licenseIds: string[] = []
+): number {
+  const cut = hospitalTimeCutPct(completedCourseIds, licenseIds);
+  return Math.max(60_000, Math.round(baseMs * (1 - cut / 100)));
 }
 
 export function educationOddsMod(

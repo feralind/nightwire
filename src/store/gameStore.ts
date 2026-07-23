@@ -21,6 +21,21 @@ import {
   getProperty,
 } from "@/content/catalog";
 import {
+  applyWound,
+  canDoLeisure,
+  cotRestHappyGain,
+  cotRestStressRelief,
+  easeWounds,
+  getLeisure,
+  gymOvertrainStressGain,
+  normalizeWounds,
+  rollCrimeFailWound,
+  woundArmHitPenalty,
+  woundCrimeOddsPenalty,
+  woundLegMovePenalty,
+  type LeisureId,
+} from "@/game/body";
+import {
   applySoftCap,
   armorSoakAmount,
   attackDamage,
@@ -39,6 +54,7 @@ import {
   xpToLevel,
 } from "@/game/formulas";
 import {
+  applyHospitalDuration,
   canApplyJob,
   canEnrollCourse,
   canPromote,
@@ -48,7 +64,13 @@ import {
 } from "@/game/careers";
 import { evaluateAwards } from "@/game/awards";
 import { refreshBazaarState, sellPrice } from "@/game/bazaar";
-import { applyContactAction, contactTipOddsBonus } from "@/game/contacts";
+import {
+  applyContactAction,
+  applyMentorReply,
+  contactActionBypassesBlock,
+  contactTipOddsBonus,
+  type MentorReplyId,
+} from "@/game/contacts";
 import { canDoGig, computeGigPay } from "@/game/gigs";
 import { licenseJobPayBonus } from "@/game/licenses";
 import { masteryOddsBonus, masteryTitleFor } from "@/game/mastery";
@@ -92,10 +114,15 @@ import { maybeApplyRivalEvents } from "@/game/rival";
 import { pickWeighted, rollD10000, unit01 } from "@/game/rng";
 import { planStreetShopBuy } from "@/game/shops";
 import { applyExecuteChoice, applyPrepStage } from "@/game/heists";
-import { createInitialState, normalizeState, type AwayModalState, type GameState, type ResultModalState } from "@/game/state";
+import { pickCrimeResultLine, pickHeistResultLine, syncTimeline } from "@/game/lore";
+import { createInitialState, normalizeState as normalizeStateRaw, type AwayModalState, type GameState, type ResultModalState } from "@/game/state";
 import { applyCatchUp } from "@/game/tick";
 import { ARMORY_RECIPES, getSafehouseRoom } from "@/content/safehouse";
 import type { AwardDef, ContactActionId, DistrictId, HeistExecuteChoice, SafehouseRoomId } from "@/game/types";
+
+function normalizeState(s: GameState): GameState {
+  return syncTimeline(normalizeStateRaw(s));
+}
 
 function actionBlocked(s: GameState, now = Date.now()): boolean {
   if (s.hospitalUntil && now < s.hospitalUntil) return true;
@@ -141,7 +168,9 @@ type Actions = {
   upgradeSafehouseRoom: (roomId: SafehouseRoomId) => void;
   craftArmoryTool: (itemId: string) => void;
   garageRepair: () => void;
+  doLeisure: (id: LeisureId) => void;
   interactContact: (contactId: string, actionId: ContactActionId) => void;
+  replyMentor: (choice: MentorReplyId) => void;
   investigationCounterplay: (kind: "lawyer" | "burn" | "laylow" | "bribe" | "leave") => void;
   refreshBazaar: () => void;
   bazaarBuy: (listingIndex: number) => void;
@@ -356,6 +385,7 @@ export const useGame = create<GameState & UIState & Actions>()(
         s = pushLog(s, "Mentor: Start small. Petty work. Keep your head.", "diegetic");
         s = ensureRitual(s);
         s = ensureBazaar(s);
+        s = syncTimeline(s);
         set({ ...s, resultModal: null, awayModal: null, awardModal: null });
       },
 
@@ -418,6 +448,8 @@ export const useGame = create<GameState & UIState & Actions>()(
           s.directorEvent?.id !== prev.directorEvent?.id ||
           s.wounds.arm !== prev.wounds.arm ||
           s.wounds.leg !== prev.wounds.leg ||
+          Math.floor(s.stress) !== Math.floor(prev.stress) ||
+          s.leisureUntil !== prev.leisureUntil ||
           dailyMutated;
 
         if (meaningful) {
@@ -496,7 +528,9 @@ export const useGame = create<GameState & UIState & Actions>()(
         const mastOdds = masteryOddsBonus(s.mastery[crime.family]?.level ?? 0);
         const respOdds =
           crime.family === "street" ? respectStreetOddsBonus(s.power.respect) : 0;
-        const finalOdds = clamp(odds + terrOdds + tipOdds + mastOdds + respOdds, 0.05, 0.9);
+        const woundPts = woundCrimeOddsPenalty(s.wounds);
+        const woundOdds = woundPts * 0.01;
+        const finalOdds = clamp(odds + terrOdds + tipOdds + mastOdds + respOdds - woundOdds, 0.05, 0.9);
         const tipMods = [
           ...modifiers,
           ...(terrOdds > 0
@@ -505,6 +539,7 @@ export const useGame = create<GameState & UIState & Actions>()(
           ...(tipBonus > 0 ? [{ label: "Contact tip", value: tipBonus }] : []),
           ...(mastOdds > 0 ? [{ label: "Mastery 5", value: mastOdds * 100 }] : []),
           ...(respOdds > 0 ? [{ label: "Street respect", value: respOdds * 100 }] : []),
+          ...(woundPts > 0 ? [{ label: "Wounds", value: -woundPts }] : []),
         ];
         return {
           locked: reasons.length > 0,
@@ -553,34 +588,34 @@ export const useGame = create<GameState & UIState & Actions>()(
         if (r < successThreshold * 0.05) {
           title = "SUCCESS";
           cash = Math.round(crime.cashMax * 1.25 * (1 + Math.min(10, s.chainLevel) * 0.05));
-          lines.push("Crit success — clean lift.");
+          lines.push(pickCrimeResultLine(crime.family, "SUCCESS", s.seed, crimeId, s.actionIndex));
         } else if (r < successThreshold) {
           title = "SUCCESS";
           cash = Math.round(
             crime.cashMin + unit01(s.seed, `cash:${crimeId}`, s.actionIndex) * (crime.cashMax - crime.cashMin)
           );
           cash = Math.round(cash * (1 + Math.min(10, s.chainLevel) * 0.05));
-          lines.push(`You pull off ${crime.name}.`);
+          lines.push(pickCrimeResultLine(crime.family, "SUCCESS", s.seed, crimeId, s.actionIndex));
         } else if (r < successThreshold + failMass * 0.3) {
           title = "MIXED";
           cash = Math.round(crime.cashMin * 0.4);
           lifeDelta = -Math.ceil(crime.failDamage * 0.4);
-          lines.push("Got something. Ate a punch.");
+          lines.push(pickCrimeResultLine(crime.family, "MIXED", s.seed, crimeId, s.actionIndex));
         } else if (r < 10000 - Math.max(failMass * 0.1, critFailExtra * 0.5)) {
           title = "FAILED";
           lifeDelta = -crime.failDamage;
-          lines.push("Burned. Empty-handed.");
+          lines.push(pickCrimeResultLine(crime.family, "FAILED", s.seed, crimeId, s.actionIndex));
         } else {
           title = "FAILED";
           lifeDelta = -crime.failDamage;
           if (unit01(s.seed, `critfail:${crimeId}`, s.actionIndex) < 0.5) {
             jailed = true;
             title = "JAILED";
-            lines.push("Uniforms already there.");
+            lines.push(pickCrimeResultLine(crime.family, "JAILED", s.seed, crimeId, s.actionIndex));
           } else {
             hospital = true;
             title = "HOSPITALIZED";
-            lines.push("Bad fall. Lights out.");
+            lines.push(pickCrimeResultLine(crime.family, "HOSPITALIZED", s.seed, crimeId, s.actionIndex));
           }
         }
 
@@ -615,10 +650,20 @@ export const useGame = create<GameState & UIState & Actions>()(
 
         s.life = clamp(s.life + lifeDelta, 0, s.lifeMax);
         if (s.life <= 0 || hospital) {
-          s.hospitalUntil = Date.now() + Math.max(10, crime.failDamage) * 60 * 1000;
+          const baseMs = Math.max(10, crime.failDamage) * 60 * 1000;
+          s.hospitalUntil = Date.now() + applyHospitalDuration(baseMs, s.completedCourses, s.licenses);
           s.life = Math.max(1, s.life);
           s.hospitalReason = `Crime fail: ${crime.name}`;
           title = "HOSPITALIZED";
+          hospital = true;
+        }
+        if (title === "FAILED" || title === "JAILED" || hospital) {
+          const wr = unit01(s.seed, `wound:${crimeId}`, s.actionIndex);
+          const slot = rollCrimeFailWound(wr, hospital);
+          if (slot) {
+            s.wounds = applyWound(normalizeWounds(s.wounds), slot, 1);
+            lines.push(`Wound: ${slot} — soft debuff until hospital or patch.`);
+          }
         }
         if (jailed) {
           s.jailUntil = Date.now() + (4 + Math.floor(s.heat / 20)) * 60 * 60 * 1000;
@@ -917,12 +962,18 @@ export const useGame = create<GameState & UIState & Actions>()(
         const dim = count >= 3 ? 0.5 : 1;
         const softBonus = s.completedCourses.reduce((a, id) => a + (getCourse(id)?.softCapBonus ?? 0), 0);
         const cap = softCap(s.level, s.completedCourses.length) + softBonus;
+        const trackStat =
+          p.key === "str" ? s.str : p.key === "def" ? s.def : p.key === "spd" ? s.spd : s.dex;
+        const overCap = trackStat >= cap;
+        const overtrainStress = gymOvertrainStressGain(count, overCap);
 
         s = {
           ...s,
           energy: s.energy - 5,
           happy: Math.max(0, s.happy - p.happy),
-          stress: Math.max(0, s.stress - 3),
+          stress: overtrainStress
+            ? Math.min(100, s.stress + overtrainStress)
+            : Math.max(0, s.stress - 3),
           gymToday: { ...s.gymToday, [p.key]: count + 1 },
           actionIndex: s.actionIndex + 1,
           lifetime: { ...s.lifetime, gymSessions: s.lifetime.gymSessions + 1 },
@@ -946,6 +997,9 @@ export const useGame = create<GameState & UIState & Actions>()(
             lines: [
               `Trained ${track}`,
               dim < 1 ? "Diminishing returns" : "Solid session",
+              overtrainStress
+                ? `Overtrain — stress +${overtrainStress}`
+                : "Stress eased a notch",
               ...awardPass.unlocked.map((a) => `Award: ${a.name}`),
             ],
             cashDelta: 0,
@@ -1052,8 +1106,8 @@ export const useGame = create<GameState & UIState & Actions>()(
         if (s.life < 15) return;
 
         const loadout = loadoutMods(s);
-        const armPenalty = s.wounds.arm > 0 ? 0.12 : 0;
-        const legPenalty = s.wounds.leg > 0 ? 0.1 : 0;
+        const armPenalty = woundArmHitPenalty(s.wounds);
+        const legPenalty = woundLegMovePenalty(s.wounds);
         s = { ...s, energy: s.energy - npc.energyCost, actionIndex: s.actionIndex + 1 };
 
         const lines: string[] = [];
@@ -1153,8 +1207,8 @@ export const useGame = create<GameState & UIState & Actions>()(
         }
 
         s.life = clamp(playerLife, 0, s.lifeMax);
-        if (woundedArm) s.wounds = { ...s.wounds, arm: Math.max(s.wounds.arm, 1) };
-        if (woundedLeg) s.wounds = { ...s.wounds, leg: Math.max(s.wounds.leg, 1) };
+        if (woundedArm) s.wounds = applyWound(normalizeWounds(s.wounds), "arm", 1);
+        if (woundedLeg) s.wounds = applyWound(normalizeWounds(s.wounds), "leg", 1);
 
         if (fled) {
           title = "MIXED";
@@ -1182,7 +1236,13 @@ export const useGame = create<GameState & UIState & Actions>()(
         } else if (s.life <= 0 || (npcLife > 0 && playerLife <= npcLife * 0.2 && npcLife > playerLife)) {
           title = "HOSPITALIZED";
           s.life = Math.max(1, s.life);
-          s.hospitalUntil = Date.now() + (12 + Math.floor(npc.power / 4)) * 60 * 1000;
+          s.hospitalUntil =
+            Date.now() +
+            applyHospitalDuration(
+              (12 + Math.floor(npc.power / 4)) * 60 * 1000,
+              s.completedCourses,
+              s.licenses
+            );
           s.hospitalReason = `Lost fight vs ${npc.name}`;
           s.heat = Math.min(120, s.heat + npc.heatOnLose);
           s.stress = Math.min(100, s.stress + 12);
@@ -1430,10 +1490,7 @@ export const useGame = create<GameState & UIState & Actions>()(
         s.street -= cost;
         const lifeGain = 12 + s.safehouseRooms.garage * 6;
         s.life = Math.min(s.lifeMax, s.life + lifeGain);
-        s.wounds = {
-          arm: Math.max(0, s.wounds.arm - 1),
-          leg: Math.max(0, s.wounds.leg - 1),
-        };
+        s.wounds = easeWounds(normalizeWounds(s.wounds), 1);
         s.stress = Math.max(0, s.stress - 3);
         s = pushLog(s, `Garage bench repair (−$${cost} street, life +${lifeGain})`, "system");
         set({
@@ -1450,14 +1507,117 @@ export const useGame = create<GameState & UIState & Actions>()(
         });
       },
 
+      doLeisure: (id) => {
+        let s: GameState = normalizeState(get());
+        if (!s.created) return;
+        const now = Date.now();
+        const def = getLeisure(id);
+        if (!def) return;
+        const rooms = normalizeSafehouseRooms(s.safehouseRooms);
+        s.safehouseRooms = rooms;
+        s.wounds = normalizeWounds(s.wounds);
+        const ctx = {
+          clean: s.clean,
+          street: s.street,
+          ownedProperties: s.ownedProperties,
+          safehouseRooms: rooms,
+          leisureUntil: s.leisureUntil,
+          hospitalUntil: s.hospitalUntil,
+          jailUntil: s.jailUntil,
+          travelUntil: s.travelUntil,
+          laylowUntil: s.laylowUntil,
+          stress: s.stress,
+          happy: s.happy,
+          happyMax: s.happyMax,
+          life: s.life,
+          lifeMax: s.lifeMax,
+          wounds: s.wounds,
+          district: s.district,
+        };
+        if (!canDoLeisure(id, ctx, now)) return;
+
+        let stressRelief = def.stressRelief;
+        let happyGain = def.happyGain;
+        if (id === "cot_rest") {
+          stressRelief = cotRestStressRelief(rooms);
+          happyGain = cotRestHappyGain(rooms);
+        }
+
+        s.clean -= def.clean;
+        s.street -= def.street;
+        s.stress = Math.max(0, s.stress - stressRelief);
+        s.happy = Math.min(s.happyMax, s.happy + happyGain);
+        if (def.lifeGain) s.life = Math.min(s.lifeMax, s.life + def.lifeGain);
+        if (def.woundEase) s.wounds = easeWounds(s.wounds, def.woundEase);
+        s.leisureUntil = now + def.cooldownMs;
+        s.actionIndex += 1;
+
+        const cashDelta = -(def.clean + def.street);
+        const lines = [
+          def.blurb,
+          `−${stressRelief} stress · +${happyGain} happy`,
+          def.lifeGain ? `+${def.lifeGain} life` : null,
+          def.woundEase ? "Wounds eased one notch" : null,
+          def.clean ? `−$${def.clean} clean` : null,
+          def.street ? `−$${def.street} street` : null,
+        ].filter(Boolean) as string[];
+
+        s = pushLog(s, `${def.name}: stress −${stressRelief}`, "system");
+        const awardPass = applyAwardPass(s);
+        s = awardPass.state;
+        set({
+          ...s,
+          awardModal: awardPass.unlocked.length ? awardModalPayload(awardPass.unlocked) : get().awardModal,
+          resultModal: {
+            title: "SUCCESS",
+            lines: [...lines, ...awardPass.unlocked.map((a) => `Award: ${a.name}`)],
+            cashDelta,
+          },
+        });
+      },
+
       interactContact: (contactId, actionId) => {
         let s: GameState = { ...get() };
         if (!s.created) return;
-        if (actionBlocked(s)) return;
-        const result = applyContactAction(s, contactId, actionId);
+        const bypass = contactActionBypassesBlock(contactId, actionId);
+        const now = Date.now();
+        const jailed = Boolean(s.jailUntil && now < s.jailUntil);
+        const hospital = Boolean(s.hospitalUntil && now < s.hospitalUntil);
+        const travel = Boolean(s.travelUntil && now < s.travelUntil);
+        const laylow = Boolean(s.laylowUntil && now < s.laylowUntil);
+        if (travel || laylow) return;
+        if (jailed && bypass !== "jail") return;
+        if (hospital && bypass !== "hospital") return;
+        if (!jailed && !hospital && actionBlocked(s, now)) return;
+        const result = applyContactAction(s, contactId, actionId, now);
         if (!result) return;
         s = result.state;
         s = pushLog(s, result.lines[0] ?? `Contact: ${contactId}`, "diegetic");
+        s = maybeRival(s);
+        const awardPass = applyAwardPass(s);
+        s = awardPass.state;
+        set({
+          ...s,
+          awardModal: awardPass.unlocked.length ? awardModalPayload(awardPass.unlocked) : get().awardModal,
+          resultModal: {
+            title: result.title,
+            lines: [...result.lines, ...awardPass.unlocked.map((a) => `Award: ${a.name}`)],
+            cashDelta: result.cashDelta,
+          },
+        });
+      },
+
+      replyMentor: (choice) => {
+        let s: GameState = { ...get() };
+        if (!s.created) return;
+        if (actionBlocked(s)) return;
+        const result = applyMentorReply(s, choice);
+        if (!result) return;
+        s = result.state;
+        s = pushLog(s, result.lines[0] ?? "Mentor reply", "diegetic");
+        for (const line of result.lines.slice(1, 3)) {
+          s = pushLog(s, line, "diegetic");
+        }
         s = maybeRival(s);
         const awardPass = applyAwardPass(s);
         s = awardPass.state;
@@ -1716,12 +1876,17 @@ export const useGame = create<GameState & UIState & Actions>()(
         s = updateIdentity(s);
         const awardPass = applyAwardPass(s);
         s = awardPass.state;
+        const flavorOutcome =
+          result.title === "SUCCESS" || result.title === "MIXED"
+            ? result.title
+            : ("FAILED" as const);
+        const flavor = pickHeistResultLine(flavorOutcome, s.seed, heistId, s.actionIndex);
         set({
           ...s,
           awardModal: awardPass.unlocked.length ? awardModalPayload(awardPass.unlocked) : get().awardModal,
           resultModal: {
             title: result.title,
-            lines: [...result.lines, ...awardPass.unlocked.map((a) => `Award: ${a.name}`)],
+            lines: [flavor, ...result.lines, ...awardPass.unlocked.map((a) => `Award: ${a.name}`)],
             cashDelta: result.cashDelta,
             ritual: result.ritual,
           },

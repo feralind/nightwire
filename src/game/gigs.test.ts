@@ -6,9 +6,9 @@ import { GIGS_WEEKLY_CAP, canDoGig, computeGigPay, gigDoReasons, gigPayBonusPct 
 import { createInitialState } from "./state";
 
 describe("gigs V0", () => {
-  it("ships eight short legal contracts across districts", () => {
-    expect(GIGS.length).toBe(8);
-    expect(new Set(GIGS.flatMap((g) => g.districtBias)).size).toBe(3);
+  it("ships ten short legal contracts across districts", () => {
+    expect(GIGS.length).toBe(10);
+    expect(new Set(GIGS.flatMap((g) => g.districtBias)).size).toBeGreaterThanOrEqual(4);
   });
 
   it("allows open gigs while unemployed", () => {

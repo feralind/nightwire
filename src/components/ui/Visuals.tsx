@@ -132,6 +132,12 @@ export const CONTACT_ART: Record<string, string> = {
   ivy: "/art/contacts/ivy.webp",
   nix: "/art/contacts/nix.webp",
   soot: "/art/contacts/soot.webp",
+  wren: "/art/contacts/wren.webp",
+  calder: "/art/contacts/calder.webp",
+  quill: "/art/contacts/quill.webp",
+  joss: "/art/contacts/joss.webp",
+  haze: "/art/contacts/haze.webp",
+  pike: "/art/contacts/pike.webp",
   vex: "/art/contacts/vex.webp",
 };
 
@@ -190,6 +196,8 @@ export const GIG_ART: Record<string, string> = {
   campus_filing: "/art/gigs/campus_filing.webp",
   freight_assist: "/art/gigs/freight_assist.webp",
   civic_clipboard: "/art/gigs/civic_clipboard.webp",
+  clinic_aide: "/art/gigs/clinic_aide.webp",
+  locksmith_call: "/art/gigs/locksmith_call.webp",
 };
 
 export const DISTRICT_ART: Record<string, string> = {
@@ -210,6 +218,22 @@ export const HEIST_ART: Record<string, string> = {
   spire_float: "/art/heists/spire_float.webp",
   soft_house_run: "/art/heists/soft_house_run.webp",
   bond_desk: "/art/heists/bond_desk.webp",
+  neon_till: "/art/heists/neon_till.webp",
+  gallery_wire: "/art/heists/gallery_wire.webp",
+  loft_mail: "/art/heists/loft_mail.webp",
+  pallet_ghost: "/art/heists/pallet_ghost.webp",
+  substation_siphon: "/art/heists/substation_siphon.webp",
+  chop_lane: "/art/heists/chop_lane.webp",
+  crane_blind: "/art/heists/crane_blind.webp",
+  cold_chain: "/art/heists/cold_chain.webp",
+  ambulance_divert: "/art/heists/ambulance_divert.webp",
+  evidence_soft: "/art/heists/evidence_soft.webp",
+  clinic_ledger: "/art/heists/clinic_ledger.webp",
+  courier_swap: "/art/heists/courier_swap.webp",
+  penthouse_skim: "/art/heists/penthouse_skim.webp",
+  stoop_tax: "/art/heists/stoop_tax.webp",
+  race_bag: "/art/heists/race_bag.webp",
+  alley_stash: "/art/heists/alley_stash.webp",
 };
 
 export const HEIST_HERO = "/art/heists/hero.webp";
@@ -223,6 +247,10 @@ export const SAFEHOUSE_ROOM_ART: Record<string, string> = {
 };
 
 export const SAFEHOUSE_HERO = "/art/safehouse/hero.webp";
+
+export const CODEX_HERO = "/art/codex/hero.webp";
+export const NEWSPAPER_HERO = "/art/newspaper/hero.webp";
+export const TIMELINE_HERO = "/art/timeline/hero.webp";
 
 export const BUSINESS_HERO = "/art/bank/hero.webp";
 
@@ -634,4 +662,6 @@ export const SCHOOL_ART: Record<string, string> = {
   "Street Electives": "/art/campus/street.webp",
   "Commerce & Finance": "/art/campus/commerce.webp",
   "Harbor & Logistics": "/art/campus/harbor.webp",
+  "Med & Civic": "/art/campus/med.webp",
+  "Locks & Entry": "/art/campus/locks.webp",
 };

@@ -1,16 +1,19 @@
 import { describe, expect, it } from "vitest";
 import { COURSES, JOBS, getJob } from "@/content/catalog";
 import {
+  applyHospitalDuration,
   bankInterestRate,
   canApplyJob,
   canEnrollCourse,
   canPromote,
   courseEnrollReasons,
   educationOddsMod,
+  hospitalTimeCutPct,
   jobApplyReasons,
   jobPromoteReasons,
   jobSpecialtyOddsMod,
   promoteXpNeeded,
+  schools,
   transcriptPerkSum,
 } from "./careers";
 import { applyCatchUp } from "./tick";
@@ -81,6 +84,37 @@ describe("education gating", () => {
     expect(bankInterestRate(["cf1"])).toBeGreaterThan(0.02);
   });
 
+  it("med courses cut hospital time and unlock pharmacy vault", () => {
+    const sum = transcriptPerkSum(["mc1", "mc2"]);
+    expect(sum.hospitalTimeReduction).toBe(25);
+    expect(sum.unlockedCrimeIds).toContain("hospital_vault");
+    expect(hospitalTimeCutPct(["mc1"], ["med_aide"])).toBe(25);
+    expect(applyHospitalDuration(100_000, ["mc1"], ["med_aide"])).toBe(75_000);
+  });
+
+  it("ships five schools on the V2 campus", () => {
+    expect(schools()).toEqual([
+      "Street Electives",
+      "Commerce & Finance",
+      "Harbor & Logistics",
+      "Med & Civic",
+      "Locks & Entry",
+    ]);
+  });
+
+  it("gates Locks & Entry behind Street Navigation", () => {
+    const le1 = COURSES.find((c) => c.id === "le1")!;
+    const noSe1 = {
+      level: 5,
+      completedCourses: [] as string[],
+      activeCourseId: null as string | null,
+      clean: 9999,
+      street: 0,
+    };
+    expect(canEnrollCourse(le1, noSe1, false)).toBe(false);
+    expect(canEnrollCourse(le1, { ...noSe1, completedCourses: ["se1"] }, false)).toBe(true);
+  });
+
   it("completes courses offline and unlocks content", () => {
     const base = createInitialState({
       created: true,
@@ -115,7 +149,7 @@ describe("education gating", () => {
 describe("v1 catalog floors", () => {
   it("ships 24 jobs across 8 careers × 3 ranks", () => {
     expect(JOBS).toHaveLength(24);
-    expect(COURSES).toHaveLength(6);
+    expect(COURSES).toHaveLength(15);
     expect(JOBS.filter((j) => j.rank === 1)).toHaveLength(8);
     expect(JOBS.filter((j) => j.rank === 2)).toHaveLength(8);
     expect(JOBS.filter((j) => j.rank === 3)).toHaveLength(8);
