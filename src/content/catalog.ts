@@ -2,6 +2,7 @@ import type {
   AwardDef,
   ContactDef,
   CourseDef,
+  LicenseDef,
   GigDef,
   ItemDef,
   NpcDef,
@@ -12,6 +13,11 @@ export { DISTRICTS } from "@/content/districts";
 export { CRIMES } from "@/content/crimes";
 export { JOBS } from "@/content/jobs";
 export { HEISTS, getHeist } from "@/content/heists";
+export {
+  SAFEHOUSE_ROOMS,
+  ARMORY_RECIPES,
+  getSafehouseRoom,
+} from "@/content/safehouse";
 
 import { CRIMES } from "@/content/crimes";
 import { DISTRICTS } from "@/content/districts";
@@ -184,6 +190,68 @@ export const COURSES: CourseDef[] = [
     jobPayBonus: 10,
     oddsBonus: 5,
     oddsFamilies: ["heavy"],
+  },
+];
+
+/** One license per campus course — granted on complete; stacks with transcript perks */
+export const LICENSES: LicenseDef[] = [
+  {
+    id: "nav_permit",
+    name: "Street Navigation Permit",
+    courseId: "se1",
+    blurb: "City maps stamped legal. Soft exits count as civic know-how.",
+    oddsBonus: 2,
+    oddsFamilies: ["street"],
+    legitimacyGain: 3,
+    weeklyStipend: 15,
+  },
+  {
+    id: "persuasion_cert",
+    name: "Civic Persuasion Cert",
+    courseId: "se2",
+    blurb: "Talk soft on paperwork. Opens cleaner freelance rates.",
+    jobPayBonus: 2,
+    legitimacyGain: 2,
+    weeklyStipend: 20,
+  },
+  {
+    id: "fitness_cert",
+    name: "Campus Fitness Cert",
+    courseId: "se3",
+    blurb: "School gym card that still clears civic desk checks.",
+    legitimacyGain: 1,
+    weeklyStipend: 10,
+  },
+  {
+    id: "commerce_cert",
+    name: "Commerce Cert",
+    courseId: "cf1",
+    blurb: "Bookkeeping seal. Banks and landlords trust the ink.",
+    jobPayBonus: 3,
+    bankInterestBonus: 0.5,
+    legitimacyGain: 4,
+    weeklyStipend: 40,
+  },
+  {
+    id: "business_license",
+    name: "Business Operator License",
+    courseId: "cf2",
+    blurb: "Fronts and floats on the clean ledger. Pay scales up.",
+    jobPayBonus: 5,
+    bankInterestBonus: 0.25,
+    legitimacyGain: 5,
+    weeklyStipend: 60,
+  },
+  {
+    id: "harbor_safety",
+    name: "Harbor Safety Cert",
+    courseId: "hl1",
+    blurb: "Crane and container clearance. Docks pay better; heavy work runs cleaner.",
+    jobPayBonus: 4,
+    oddsBonus: 3,
+    oddsFamilies: ["heavy"],
+    legitimacyGain: 3,
+    weeklyStipend: 35,
   },
 ];
 
@@ -833,6 +901,9 @@ export function getGig(id: string) {
 }
 export function getCourse(id: string) {
   return COURSES.find((c) => c.id === id);
+}
+export function getLicense(id: string) {
+  return LICENSES.find((l) => l.id === id);
 }
 export function getItem(id: string) {
   return ITEMS.find((i) => i.id === id);

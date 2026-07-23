@@ -19,7 +19,7 @@ import { formatMoney } from "@/game/formulas";
 import { Module } from "@/components/ui/Module";
 import { GameButton } from "@/components/ui/GameButton";
 import { RequirementsBox } from "@/components/ui/RequirementsBox";
-import { PageHero } from "@/components/ui/Visuals";
+import { HEIST_ART, HEIST_HERO, PageHero } from "@/components/ui/Visuals";
 import { useGame } from "@/store/gameStore";
 import type { HeistDef, HeistStageDef } from "@/game/types";
 import styles from "../tables.module.css";
@@ -52,6 +52,12 @@ function BoardCard({ heist }: { heist: HeistDef }) {
 
   return (
     <article className={`${boardStyles.card} ${!unlocked ? boardStyles.locked : ""}`}>
+      <div
+        className={boardStyles.banner}
+        style={{
+          backgroundImage: `linear-gradient(90deg,rgba(0,0,0,0.55),rgba(0,0,0,0.2)), url(${HEIST_ART[heist.id] ?? HEIST_HERO})`,
+        }}
+      />
       <header className={boardStyles.head}>
         <div>
           <strong>{heist.name}</strong>
@@ -172,7 +178,7 @@ export default function OrganizedPage() {
         title="Organized"
         subtitle="Prep boards, not one-click scores. Intel → crew → kit → window → execute. Failures can burn staged tools — never the whole save."
         tone="crime"
-        image="/art/crimes/harbor.webp"
+        image={HEIST_HERO}
         tall
       />
 

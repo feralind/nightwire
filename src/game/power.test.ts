@@ -61,6 +61,8 @@ describe("power tracks — political", () => {
         politicalRung: 0,
         respect: 0,
         businessTierOwned: 0,
+        businessRisk: 0,
+        businessStaff: 0,
       },
     });
     const reasons = politicalBuyReasons(s);
@@ -121,6 +123,8 @@ describe("power tracks — business empire", () => {
         politicalRung: 0,
         respect: 0,
         businessTierOwned: 0,
+        businessRisk: 0,
+        businessStaff: 0,
       },
     });
     expect(canBuyBusiness(s)).toBe(false);
@@ -141,6 +145,8 @@ describe("power tracks — business empire", () => {
         politicalRung: 0,
         respect: 0,
         businessTierOwned: 1,
+        businessRisk: 0,
+        businessStaff: 0,
       },
       168
     );
@@ -150,6 +156,8 @@ describe("power tracks — business empire", () => {
         politicalRung: 0,
         respect: 0,
         businessTierOwned: 1,
+        businessRisk: 0,
+        businessStaff: 0,
       },
       168
     );
@@ -160,6 +168,8 @@ describe("power tracks — business empire", () => {
       politicalRung: 0,
       respect: 0,
       businessTierOwned: 0,
+      businessRisk: 0,
+      businessStaff: 0,
     })).toBeCloseTo(25, 5);
   });
 });
@@ -183,11 +193,14 @@ describe("power tracks — catch-up income", () => {
         politicalRung: 0,
         respect: 0,
         businessTierOwned: 1,
+        businessRisk: 0,
+        businessStaff: 0,
       },
       clean: 100,
     });
     const { state, awaySummary } = applyCatchUp(s, now);
-    expect(state.clean).toBeGreaterThanOrEqual(300);
+    // 200 revenue − 40 upkeep netting +160 → 260
+    expect(state.clean).toBeGreaterThanOrEqual(260);
     expect(awaySummary?.legal.some((l) => l.includes("Laundromat") || l.includes("revenue"))).toBe(true);
   });
 });
@@ -208,6 +221,8 @@ describe("power tracks — hybrid meters", () => {
         politicalRung: 0,
         respect: 220,
         businessTierOwned: 0,
+        businessRisk: 0,
+        businessStaff: 0,
       },
     });
     const m = powerMeters(s);

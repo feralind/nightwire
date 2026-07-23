@@ -1,10 +1,24 @@
 import { COURSES, getProperty } from "@/content/catalog";
 import { bankInterestRate } from "@/game/careers";
 import { happyStudyFactor } from "@/game/formulas";
+import {
+  grantLicenseOnCourseComplete,
+  licenseWeeklyStipend,
+} from "@/game/licenses";
 import { businessIncomeForHours } from "@/game/power";
 import { weeklyPropertyNet } from "@/game/properties";
 import { applyRivalAwayPressure } from "@/game/rival";
 import { unit01 } from "@/game/rng";
+import {
+  cotHappyPerHour,
+  cotLifePerHour,
+  cotStressDecayPerHour,
+  garageEnergyPerHour,
+  normalizeSafehouseRooms,
+  studySpeedMult,
+  vaultHeatDecayBonus,
+  vaultRaidCostMult,
+} from "@/game/safehouse";
 import type { GameState } from "@/game/state";
 
 const ENERGY_MS = 5 * 60 * 1000;
@@ -38,15 +52,21 @@ export function applyCatchUp(state: GameState, now = Date.now()): TickResult {
   const elapsed = Math.max(0, now - state.lastTickAt);
   const hours = elapsed / (60 * 60 * 1000);
   let s = { ...state, lifetime: { ...state.lifetime } };
+  const rooms = normalizeSafehouseRooms(s.safehouseRooms);
+  s.safehouseRooms = rooms;
 
   const energyGain = Math.floor(elapsed / ENERGY_MS);
   const nerveGain = Math.floor(elapsed / NERVE_MS);
-  s.energy = Math.min(s.energyMax, s.energy + energyGain);
+  const garageEnergy = Math.floor(hours * garageEnergyPerHour(rooms));
+  s.energy = Math.min(s.energyMax, s.energy + energyGain + garageEnergy);
   s.nerve = Math.min(s.nerveMax, s.nerve + nerveGain);
-  s.life = Math.min(s.lifeMax, s.life + Math.floor(hours * 2));
-  s.happy = Math.min(s.happyMax, s.happy + Math.floor(hours * 3));
-  s.heat = Math.max(0, s.heat - hours * (s.energy < 5 ? 2 : 0.5));
-  s.stress = Math.max(0, s.stress - (hours >= 72 ? 20 : hours >= 8 ? 5 : 0));
+  s.life = Math.min(s.lifeMax, s.life + Math.floor(hours * cotLifePerHour(rooms)));
+  s.happy = Math.min(s.happyMax, s.happy + Math.floor(hours * cotHappyPerHour(rooms)));
+  const heatDecay = hours * ((s.energy < 5 ? 2 : 0.5) + vaultHeatDecayBonus(rooms));
+  s.heat = Math.max(0, s.heat - heatDecay);
+  const stressDrop =
+    (hours >= 72 ? 20 : hours >= 8 ? 5 : 0) + hours * cotStressDecayPerHour(rooms);
+  s.stress = Math.max(0, s.stress - stressDrop);
 
   const legal: string[] = [];
   const street: string[] = [];
@@ -56,14 +76,26 @@ export function applyCatchUp(state: GameState, now = Date.now()): TickResult {
   if (energyGain) legal.push(`Energy +${energyGain}`);
   if (nerveGain) legal.push(`Nerve +${nerveGain}`);
 
-  // Bank interest ~2%/week (+ commerce course bonuses)
+  // Bank interest ~2%/week (+ commerce course + license bonuses)
   if (s.bank > 0 && hours >= 1) {
-    const rate = bankInterestRate(s.completedCourses);
+    const rate = bankInterestRate(s.completedCourses, s.licenses);
     const interest = Math.floor(s.bank * rate * (hours / 168));
     if (interest > 0) {
       s.bank += interest;
       s.lifetime.interestEarned += interest;
       legal.push(`Bank interest +$${interest}`);
+    }
+  }
+
+  // License stipends — small weekly clean while holding certs
+  if (hours >= 1) {
+    const weekly = licenseWeeklyStipend(s.licenses);
+    if (weekly > 0) {
+      const stipend = Math.floor(weekly * (hours / 168));
+      if (stipend > 0) {
+        s.clean += stipend;
+        legal.push(`License stipend +$${stipend}`);
+      }
     }
   }
 
@@ -93,12 +125,36 @@ export function applyCatchUp(state: GameState, now = Date.now()): TickResult {
     }
   }
 
-  // Business empire passive clean income (territory amplifies)
+  // Business empire passive clean income − upkeep/wages (territory / risk / staff amplify)
   if (s.power.businessTierOwned > 0 && hours >= 1) {
-    const { income, label } = businessIncomeForHours(s.power, hours);
+    const { income, upkeep, label } = businessIncomeForHours(s.power, hours);
     if (income > 0) {
       s.clean += income;
       legal.push(label);
+    }
+    if (upkeep > 0) {
+      const paid = Math.min(s.clean, upkeep);
+      s.clean -= paid;
+      if (paid < upkeep) {
+        const rest = upkeep - paid;
+        s.street = Math.max(0, s.street - rest);
+        street.push(`Front upkeep shortfall −$${rest} street`);
+      }
+      legal.push(`Front upkeep −$${upkeep}`);
+    }
+    // Aggressive books: inspection risk scales with hours away
+    if (s.power.businessRisk === 1 && hours >= 8) {
+      const chance = Math.min(0.28, 0.06 + hours / 500);
+      if (unit01(s.seed, "biz_inspect", Math.floor(now / 3600000) + s.power.businessTierOwned) < chance) {
+        const fine = Math.max(80, Math.floor(upkeep * 2) || 120);
+        const paid = Math.min(s.clean, fine);
+        s.clean -= paid;
+        if (paid < fine) {
+          s.street = Math.max(0, s.street - (fine - paid));
+        }
+        s.heat = Math.min(120, s.heat + 5);
+        city.push(`Tax audit on the front (−$${fine}, heat +5)`);
+      }
     }
   }
 
@@ -108,7 +164,7 @@ export function applyCatchUp(state: GameState, now = Date.now()): TickResult {
       s.ownedProperties.reduce((a, id) => a + (getProperty(id)?.raidRisk ?? 1), 0) / s.ownedProperties.length;
     const chance = Math.min(0.35, (s.heat - 60) / 100) * risk;
     if (unit01(s.seed, "prop_raid", Math.floor(now / 3600000) + s.ownedProperties.length) < chance) {
-      const bribe = 400 * s.ownedProperties.length;
+      const bribe = Math.floor(400 * s.ownedProperties.length * vaultRaidCostMult(rooms));
       if (s.street >= bribe) {
         s.street -= bribe;
         street.push(`Raid pressure — bribed out (−$${bribe} street)`);
@@ -131,7 +187,8 @@ export function applyCatchUp(state: GameState, now = Date.now()): TickResult {
     if (course && !jailed) {
       const stressSlow = 1 - Math.min(0.25, s.stress * 0.002);
       const happySlow = happyStudyFactor(s.happy);
-      const add = hours * stressSlow * happySlow;
+      const desk = studySpeedMult(rooms);
+      const add = hours * stressSlow * happySlow * desk;
       s.courseProgressHours += add;
       if (s.ritual && !s.ritual.rewardClaimed && s.ritual.kind === "study" && add > 0) {
         s.ritual = {
@@ -155,6 +212,15 @@ export function applyCatchUp(state: GameState, now = Date.now()): TickResult {
         progress.push(`Completed ${course.name}`);
         if (course.unlocks?.length) {
           progress.push(`Unlocked content: ${course.unlocks.join(", ")}`);
+        }
+        const granted = grantLicenseOnCourseComplete(s.licenses, course.id);
+        s.licenses = granted.licenses;
+        if (granted.license) {
+          progress.push(`License earned: ${granted.license.name}`);
+          if (granted.legitimacyGain > 0) {
+            s.legitimacy = Math.min(100, s.legitimacy + granted.legitimacyGain);
+            legal.push(`Legitimacy +${granted.legitimacyGain} (${granted.license.name})`);
+          }
         }
       }
     } else if (course && jailed && hours >= 0.5) {

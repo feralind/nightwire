@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { COURSES, CRIMES, getCourse } from "@/content/catalog";
+import { COURSES, CRIMES, LICENSES, getCourse } from "@/content/catalog";
 import {
   canEnrollCourse,
   courseEnrollReasons,
@@ -11,6 +11,7 @@ import {
   transcriptPerkSum,
 } from "@/game/careers";
 import { formatMoney } from "@/game/formulas";
+import { licenseEffectLabels, licensePerkSum } from "@/game/licenses";
 import { Module } from "@/components/ui/Module";
 import { GameButton } from "@/components/ui/GameButton";
 import { RequirementsBox } from "@/components/ui/RequirementsBox";
@@ -26,6 +27,11 @@ export default function EducationPage() {
   const active = COURSES.find((c) => c.id === s.activeCourseId);
   const list = COURSES.filter((c) => c.school === school);
   const transcript = transcriptPerkSum(s.completedCourses);
+  const licenseSum = licensePerkSum(s.licenses);
+  const certs = useMemo(
+    () => LICENSES.filter((l) => s.licenses.includes(l.id)),
+    [s.licenses]
+  );
   const pct = active ? Math.min(100, Math.round((s.courseProgressHours / active.hours) * 100)) : 0;
   const remaining = active ? Math.max(0, active.hours - s.courseProgressHours) : 0;
   const probation = Boolean(active && s.heat >= 70);
@@ -49,6 +55,7 @@ export default function EducationPage() {
             {active ? `Studying ${active.name}` : "No active course"}
           </span>
           <span className={hub.chip}>Transcript {s.completedCourses.length}</span>
+          <span className={hub.chip}>Licenses {s.licenses.length}</span>
           {probation ? <span className={hub.chip}>Probation</span> : null}
         </div>
       </PageHero>
@@ -149,7 +156,7 @@ export default function EducationPage() {
                 <div
                   style={{
                     height: 96,
-                    background: `linear-gradient(180deg,transparent 30%,rgba(0,0,0,0.75)), center/cover no-repeat url(${schoolArt})`,
+                    background: `linear-gradient(180deg,transparent 30%,rgba(0,0,0,0.75)), center 30%/cover no-repeat url(${schoolArt})`,
                     position: "relative",
                   }}
                 >
@@ -227,6 +234,37 @@ export default function EducationPage() {
               {transcript.softCapBonus ? <li>Gym soft cap +{transcript.softCapBonus}</li> : null}
               {transcript.bankInterestBonus ? <li>Bank interest +{transcript.bankInterestBonus}%</li> : null}
               {unlockedNames ? <li>Content unlocked: {unlockedNames}</li> : null}
+            </ul>
+          </>
+        )}
+      </Module>
+
+      <Module
+        title="Licenses"
+        footer={
+          <>
+            Certs granted on course complete · <Link href="/licenses">Full wallet</Link>
+          </>
+        }
+      >
+        {certs.length === 0 ? (
+          <p className={hub.sub}>No seals yet. Finish any course to earn its license.</p>
+        ) : (
+          <>
+            <ul className={hub.sub} style={{ margin: 0, paddingLeft: 18 }}>
+              {certs.map((l) => (
+                <li key={l.id}>
+                  <strong>{l.name}</strong> — {licenseEffectLabels(l).join(" · ") || l.blurb}
+                </li>
+              ))}
+            </ul>
+            <ul className={hub.sub} style={{ margin: "8px 0 0", paddingLeft: 18 }}>
+              {licenseSum.jobPayBonus ? <li>License job pay +{licenseSum.jobPayBonus}%</li> : null}
+              {licenseSum.bankInterestBonus ? (
+                <li>License bank interest +{licenseSum.bankInterestBonus}%</li>
+              ) : null}
+              {licenseSum.oddsBonus ? <li>License odds crumbs +{licenseSum.oddsBonus}</li> : null}
+              {licenseSum.weeklyStipend ? <li>Weekly stipend ${licenseSum.weeklyStipend}</li> : null}
             </ul>
           </>
         )}

@@ -1,4 +1,9 @@
 import { COURSES, CRIMES, JOBS, getCourse, getCrime, getJob } from "@/content/catalog";
+import {
+  licenseBankInterestBonus,
+  licenseForCourse,
+  licenseOddsMod,
+} from "@/game/licenses";
 import type { CourseDef, JobDef } from "@/game/types";
 
 export type ReqReason = { label: string; href?: string };
@@ -157,6 +162,8 @@ export function coursePerkLabels(course: CourseDef): string[] {
   if (course.unlocks?.length) {
     perks.push(`Unlocks: ${courseUnlockLabels(course).join(", ")}`);
   }
+  const lic = licenseForCourse(course.id);
+  if (lic) perks.push(`License: ${lic.name}`);
   return perks;
 }
 
@@ -196,7 +203,8 @@ export function transcriptPerkSum(completedCourseIds: string[]): {
 
 export function educationOddsMod(
   completedCourseIds: string[],
-  crimeFamily: "petty" | "street" | "heavy"
+  crimeFamily: "petty" | "street" | "heavy",
+  licenseIds: string[] = []
 ): number {
   let mod = 0;
   for (const id of completedCourseIds) {
@@ -206,7 +214,7 @@ export function educationOddsMod(
       mod += c.oddsBonus;
     }
   }
-  return mod;
+  return mod + licenseOddsMod(licenseIds, crimeFamily);
 }
 
 export function jobSpecialtyOddsMod(jobId: string | null, crimeId: string): number {
@@ -221,10 +229,14 @@ export function jobSpecialtyOddsMod(jobId: string | null, crimeId: string): numb
   return mod;
 }
 
-export function bankInterestRate(completedCourseIds: string[]): number {
+export function bankInterestRate(completedCourseIds: string[], licenseIds: string[] = []): number {
   const base = 0.02;
-  const bonusPct = completedCourseIds.reduce((a, id) => a + (getCourse(id)?.bankInterestBonus ?? 0), 0);
-  return base + bonusPct / 100;
+  const courseBonus = completedCourseIds.reduce(
+    (a, id) => a + (getCourse(id)?.bankInterestBonus ?? 0),
+    0
+  );
+  const licenseBonus = licenseBankInterestBonus(licenseIds);
+  return base + (courseBonus + licenseBonus) / 100;
 }
 
 export function schools(): string[] {

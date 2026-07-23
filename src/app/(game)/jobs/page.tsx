@@ -10,6 +10,7 @@ import {
   promoteXpNeeded,
 } from "@/game/careers";
 import { formatMoney } from "@/game/formulas";
+import { licenseJobPayBonus } from "@/game/licenses";
 import { Module } from "@/components/ui/Module";
 import { GameButton } from "@/components/ui/GameButton";
 import { RequirementsBox } from "@/components/ui/RequirementsBox";
@@ -33,6 +34,7 @@ export default function JobsPage() {
     Boolean(current) && !blocked && s.energy >= (current?.energy ?? 5) && s.shiftsThisWeek < 40;
 
   const coursePayBonus = s.completedCourses.reduce((a, id) => a + (getCourse(id)?.jobPayBonus ?? 0), 0);
+  const licensePayBonus = licenseJobPayBonus(s.licenses);
   const districtBoost = current?.districtBias.includes(s.district);
   const currentArt = current ? JOB_ART[current.career] ?? "/art/jobs/hero.webp" : "/art/jobs/hero.webp";
 
@@ -54,7 +56,7 @@ export default function JobsPage() {
               <img
                 src={currentArt}
                 alt=""
-                style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
+                style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 30%" }}
               />
               <div
                 style={{
@@ -80,6 +82,7 @@ export default function JobsPage() {
               <p className={styles.sub}>
                 Shifts this week {s.shiftsThisWeek}/40
                 {coursePayBonus ? ` · Course pay +${coursePayBonus}%` : ""}
+                {licensePayBonus ? ` · License pay +${licensePayBonus}%` : ""}
                 {districtBoost ? " · District labor +10%" : " · Travel to job district for +10%"}
               </p>
               {next ? (

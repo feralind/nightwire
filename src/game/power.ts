@@ -112,11 +112,15 @@ export type BusinessTierDef = {
   /** Optional commerce course id */
   requiresCourse?: string;
   weeklyCleanIncome: number;
+  /** Rent / utilities sink on the front */
+  weeklyUpkeep: number;
   /** Street→clean laundry fee rate (base bank laundry is 0.20) */
   laundryFee: number;
   /** Multiplier on weekly income from average territory % */
   territoryIncomeMult: number;
   blurb: string;
+  /** Short ops perk shown on /business */
+  special: string;
 };
 
 export const BUSINESS_TIERS: BusinessTierDef[] = [
@@ -128,9 +132,11 @@ export const BUSINESS_TIERS: BusinessTierDef[] = [
     requiresLegitimacy: 12,
     requiresLevel: 3,
     weeklyCleanIncome: 200,
+    weeklyUpkeep: 40,
     laundryFee: 0.15,
     territoryIncomeMult: 0.1,
     blurb: "Wash shirts by day, wash cash by night.",
+    special: "Street→clean laundry desk at 15%",
   },
   {
     tier: 2,
@@ -141,9 +147,11 @@ export const BUSINESS_TIERS: BusinessTierDef[] = [
     requiresLevel: 5,
     requiresCourse: "cf1",
     weeklyCleanIncome: 800,
+    weeklyUpkeep: 160,
     laundryFee: 0.12,
     territoryIncomeMult: 0.2,
     blurb: "Legitimate invoices. Soft territory lift.",
+    special: "Territory footprint lifts revenue harder",
   },
   {
     tier: 3,
@@ -154,9 +162,11 @@ export const BUSINESS_TIERS: BusinessTierDef[] = [
     requiresLevel: 8,
     requiresCourse: "cf2",
     weeklyCleanIncome: 2_500,
+    weeklyUpkeep: 500,
     laundryFee: 0.1,
     territoryIncomeMult: 0.35,
     blurb: "Fences with ledgers. Respect still has to be bought on the street.",
+    special: "Ledger cover — laundry fee 10%",
   },
   {
     tier: 4,
@@ -167,11 +177,28 @@ export const BUSINESS_TIERS: BusinessTierDef[] = [
     requiresLevel: 12,
     requiresCourse: "cf2",
     weeklyCleanIncome: 8_000,
+    weeklyUpkeep: 1_600,
     laundryFee: 0.08,
     territoryIncomeMult: 0.5,
     blurb: "Late empire. Hybrid players print clean while street flex stays separate.",
+    special: "Holding books — laundry fee 8%",
   },
 ];
+
+/** Max hired clerks on the empire desk. */
+export const BUSINESS_STAFF_MAX = 2;
+/** One-time clean hire cost per clerk. */
+export const BUSINESS_STAFF_HIRE_CLEAN = 2_500;
+/** Weekly clean wage per clerk. */
+export const BUSINESS_STAFF_WAGE_WEEKLY = 150;
+/** Revenue bump per clerk. */
+export const BUSINESS_STAFF_INCOME_MULT = 0.12;
+/** Aggressive books revenue mult. */
+export const BUSINESS_RISK_INCOME_MULT = 1.22;
+/** Aggressive laundry fee cut (absolute). */
+export const BUSINESS_RISK_LAUNDRY_CUT = 0.02;
+/** Laundry fee cut per staff. */
+export const BUSINESS_STAFF_LAUNDRY_CUT = 0.01;
 
 export function emptyPowerTracks(
   districts: DistrictId[] = [
@@ -185,7 +212,7 @@ export function emptyPowerTracks(
 ): PowerTracks {
   const territory = {} as Record<DistrictId, number>;
   for (const d of districts) territory[d] = 0;
-  return { territory, politicalRung: 0, respect: 0, businessTierOwned: 0 };
+  return { territory, politicalRung: 0, respect: 0, businessTierOwned: 0, businessRisk: 0, businessStaff: 0 };
 }
 
 /** Cost to buy the next +5% territory block in a district. */
@@ -283,6 +310,12 @@ export function ownedBusiness(tierOwned: number): BusinessTierDef | null {
   return BUSINESS_TIERS[Math.min(tierOwned, BUSINESS_TIERS.length) - 1] ?? null;
 }
 
+/** All fronts unlocked by current empire tier (chain, not parallel empires). */
+export function ownedFronts(tierOwned: number): BusinessTierDef[] {
+  if (tierOwned <= 0) return [];
+  return BUSINESS_TIERS.filter((t) => t.tier <= tierOwned);
+}
+
 export function nextBusinessTier(tierOwned: number): BusinessTierDef | null {
   if (tierOwned >= BUSINESS_TIERS.length) return null;
   return BUSINESS_TIERS[tierOwned] ?? null;
@@ -314,28 +347,108 @@ export function canBuyBusiness(s: GameState): boolean {
   return businessBuyReasons(s).length === 0 && nextBusinessTier(s.power.businessTierOwned) !== null;
 }
 
-/** Laundry fee rate — business fronts beat the base 20% bank laundry. */
-export function laundryFeeRate(businessTierOwned: number): number {
-  const biz = ownedBusiness(businessTierOwned);
-  return biz?.laundryFee ?? 0.2;
+export function businessStaffHireReasons(s: GameState): { label: string; href?: string }[] {
+  const reasons: { label: string; href?: string }[] = [];
+  if (s.power.businessTierOwned <= 0) {
+    reasons.push({ label: "Own a front first", href: "/business" });
+    return reasons;
+  }
+  if (s.power.businessStaff >= BUSINESS_STAFF_MAX) {
+    reasons.push({ label: `Staff desk full (${BUSINESS_STAFF_MAX})` });
+    return reasons;
+  }
+  if (s.clean < BUSINESS_STAFF_HIRE_CLEAN) {
+    reasons.push({
+      label: `Need ${BUSINESS_STAFF_HIRE_CLEAN.toLocaleString("en-US")} clean to hire`,
+      href: "/bank",
+    });
+  }
+  return reasons;
+}
+
+export function canHireBusinessStaff(s: GameState): boolean {
+  return businessStaffHireReasons(s).length === 0;
+}
+
+/** Laundry fee rate — business fronts beat the base 20% bank laundry; risk/staff shave more. */
+export function laundryFeeRate(power: Pick<PowerTracks, "businessTierOwned" | "businessRisk" | "businessStaff"> | number): number {
+  const tiers = typeof power === "number" ? power : power.businessTierOwned;
+  const risk = typeof power === "number" ? 0 : power.businessRisk ?? 0;
+  const staff = typeof power === "number" ? 0 : power.businessStaff ?? 0;
+  const biz = ownedBusiness(tiers);
+  let fee = biz?.laundryFee ?? 0.2;
+  if (biz && risk === 1) fee -= BUSINESS_RISK_LAUNDRY_CUT;
+  if (biz && staff > 0) fee -= BUSINESS_STAFF_LAUNDRY_CUT * staff;
+  return Math.max(0.05, fee);
+}
+
+/**
+ * Weekly P&L for the empire flagship (highest owned tier), after territory / risk / staff.
+ */
+export function businessWeeklyPnL(power: PowerTracks): {
+  revenue: number;
+  upkeep: number;
+  staffWages: number;
+  costs: number;
+  net: number;
+  laundryFee: number;
+  riskLabel: string;
+  staff: number;
+  front: BusinessTierDef | null;
+} {
+  const front = ownedBusiness(power.businessTierOwned);
+  if (!front) {
+    return {
+      revenue: 0,
+      upkeep: 0,
+      staffWages: 0,
+      costs: 0,
+      net: 0,
+      laundryFee: laundryFeeRate(power),
+      riskLabel: "No front",
+      staff: 0,
+      front: null,
+    };
+  }
+  const avg = averageTerritory(power);
+  const terrBonus = 1 + front.territoryIncomeMult * (avg / 100);
+  const riskMult = power.businessRisk === 1 ? BUSINESS_RISK_INCOME_MULT : 1;
+  const staffMult = 1 + BUSINESS_STAFF_INCOME_MULT * Math.max(0, power.businessStaff);
+  const revenue = Math.floor(front.weeklyCleanIncome * terrBonus * riskMult * staffMult);
+  const upkeep = front.weeklyUpkeep;
+  const staffWages = BUSINESS_STAFF_WAGE_WEEKLY * Math.max(0, power.businessStaff);
+  const costs = upkeep + staffWages;
+  return {
+    revenue,
+    upkeep,
+    staffWages,
+    costs,
+    net: revenue - costs,
+    laundryFee: laundryFeeRate(power),
+    riskLabel: power.businessRisk === 1 ? "Aggressive" : "Conservative",
+    staff: power.businessStaff,
+    front,
+  };
 }
 
 /**
  * Weekly clean income from business, scaled by hours and territory footprint.
- * territoryIncomeMult applies as bonus from average district influence.
+ * Returns gross revenue (upkeep/wages handled separately in tick for clearer away lines).
  */
 export function businessIncomeForHours(
   power: PowerTracks,
   hours: number
-): { income: number; label: string } {
-  const biz = ownedBusiness(power.businessTierOwned);
-  if (!biz || hours < 1) return { income: 0, label: "" };
-  const avg = averageTerritory(power);
-  const terrBonus = 1 + biz.territoryIncomeMult * (avg / 100);
-  const income = Math.floor(biz.weeklyCleanIncome * terrBonus * (hours / 168));
+): { income: number; upkeep: number; label: string } {
+  if (hours < 1) return { income: 0, upkeep: 0, label: "" };
+  const pnl = businessWeeklyPnL(power);
+  if (!pnl.front) return { income: 0, upkeep: 0, label: "" };
+  const weeks = hours / 168;
+  const income = Math.floor(pnl.revenue * weeks);
+  const upkeep = Math.floor(pnl.costs * weeks);
   return {
     income,
-    label: income > 0 ? `${biz.name} revenue +$${income}` : "",
+    upkeep,
+    label: income > 0 ? `${pnl.front.name} revenue +$${income}` : "",
   };
 }
 

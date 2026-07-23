@@ -91,6 +91,7 @@ describe("education gating", () => {
     });
     const { state, awaySummary } = applyCatchUp(base, Date.now());
     expect(state.completedCourses).toContain("se1");
+    expect(state.licenses).toContain("nav_permit");
     expect(state.activeCourseId).toBeNull();
     expect(awaySummary?.progress.some((p) => p.includes("Completed"))).toBe(true);
     expect(awaySummary?.legal.some((l) => l.includes("Scholarship"))).toBe(true);

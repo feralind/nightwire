@@ -214,4 +214,15 @@ describe("normalize backfill", () => {
     expect(n.prepBoards).toEqual({});
     expect(n.lifetime.heistsCompleted).toBe(0);
   });
+
+  it("backfills licenses from completed courses", () => {
+    const legacy = createInitialState({
+      created: true,
+      completedCourses: ["cf1", "cf2"],
+      licenses: [],
+    });
+    delete (legacy as { licenses?: string[] }).licenses;
+    const n = normalizeState(legacy);
+    expect(n.licenses).toEqual(expect.arrayContaining(["commerce_cert", "business_license"]));
+  });
 });

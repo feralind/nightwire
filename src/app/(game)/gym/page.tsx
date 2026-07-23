@@ -79,7 +79,7 @@ export default function GymPage() {
               <div
                 className={[styles.art, t.art].join(" ")}
                 style={{
-                  backgroundImage: `linear-gradient(180deg,transparent 20%,rgba(0,0,0,0.7)), center/cover no-repeat url(${GYM_TRACK_ART[t.artKey] ?? "/art/gym/hero.webp"})`,
+                  backgroundImage: `linear-gradient(180deg,transparent 20%,rgba(0,0,0,0.7)), center 30%/cover no-repeat url(${GYM_TRACK_ART[t.artKey] ?? "/art/gym/hero.webp"})`,
                 }}
               >
                 <div className={styles.artGrain} />

@@ -7,31 +7,103 @@ import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 const SCENES: Record<string, { bg: string; accent: string; label: string }> = {
   shoplift: { bg: "linear-gradient(145deg,#1a1218 0%,#3a1828 40%,#0e0e10 100%)", accent: "#c45c7a", label: "corner store" },
   pickpocket: { bg: "linear-gradient(160deg,#12161e 0%,#243048 45%,#0e0e10 100%)", accent: "#6a8caf", label: "tram line" },
-  vending: { bg: "linear-gradient(135deg,#101410 0%,#1e3a28 50%,#0e0e10 100%)", accent: "#4caf70", label: "vending" },
   bicycle: { bg: "linear-gradient(150deg,#141210 0%,#3a2e18 45%,#0e0e10 100%)", accent: "#c9a227", label: "bike rack" },
+  parking_meter: { bg: "linear-gradient(145deg,#12141a 0%,#2a3040 45%,#0e0e10 100%)", accent: "#6a8caf", label: "meter" },
+  fake_charity: { bg: "linear-gradient(150deg,#141018 0%,#3a2030 40%,#0e0e10 100%)", accent: "#c45c7a", label: "cup" },
+  vending: { bg: "linear-gradient(135deg,#101410 0%,#1e3a28 50%,#0e0e10 100%)", accent: "#4caf70", label: "vending" },
+  delivery_package: { bg: "linear-gradient(145deg,#12100e 0%,#3a2818 45%,#0e0e10 100%)", accent: "#a08040", label: "porch" },
+  basic_lock: { bg: "linear-gradient(150deg,#101214 0%,#243038 45%,#0e0e10 100%)", accent: "#8890a8", label: "lock" },
+  street_sign: { bg: "linear-gradient(145deg,#141210 0%,#2a2418 45%,#0e0e10 100%)", accent: "#a08040", label: "scrap" },
+  short_change: { bg: "linear-gradient(150deg,#141218 0%,#2a2030 40%,#0e0e10 100%)", accent: "#c9a227", label: "stall" },
+  cafe_phone: { bg: "linear-gradient(145deg,#100c14 0%,#281838 45%,#0c0a10 100%)", accent: "#9060c0", label: "cafe" },
+  coinop_scam: { bg: "linear-gradient(140deg,#140e18 0%,#3a1828 45%,#0e0e10 100%)", accent: "#c45c7a", label: "junket" },
+  laundry_pouch: { bg: "linear-gradient(145deg,#0e1214 0%,#183038 50%,#0e0e10 100%)", accent: "#40c0c8", label: "laundry" },
+  bus_pass: { bg: "linear-gradient(150deg,#0e1218 0%,#1c2838 45%,#0e0e10 100%)", accent: "#6080b0", label: "forge" },
+  atm_surf: { bg: "linear-gradient(145deg,#0a0810 0%,#241838 45%,#0c0a10 100%)", accent: "#9060c0", label: "atm" },
+  construction_skip: { bg: "linear-gradient(150deg,#101010 0%,#2a2418 45%,#0e0e10 100%)", accent: "#a08040", label: "skip" },
   mug: { bg: "linear-gradient(160deg,#120e10 0%,#3a1520 40%,#1a0a10 100%)", accent: "#e05050", label: "alley" },
   car_breakin: { bg: "linear-gradient(140deg,#0e1014 0%,#1a2838 50%,#0e0e10 100%)", accent: "#4a90d9", label: "parking" },
   warehouse: { bg: "linear-gradient(155deg,#101010 0%,#2a2418 45%,#0e0e10 100%)", accent: "#a08040", label: "warehouse" },
+  courier_hijack: { bg: "linear-gradient(145deg,#12161e 0%,#243048 45%,#0e0e10 100%)", accent: "#6a8caf", label: "bike run" },
   pharmacy: { bg: "linear-gradient(145deg,#0e1214 0%,#183038 50%,#0e0e10 100%)", accent: "#40c0c8", label: "pharmacy" },
+  race_skim: { bg: "linear-gradient(150deg,#140e08 0%,#3a2810 45%,#100c08 100%)", accent: "#d4a017", label: "race" },
+  advanced_lock: { bg: "linear-gradient(145deg,#0a0810 0%,#241838 45%,#0c0a10 100%)", accent: "#9060c0", label: "tumblers" },
+  catalytic: { bg: "linear-gradient(150deg,#101010 0%,#2a2418 45%,#0e0e10 100%)", accent: "#a08040", label: "undercarriage" },
+  badge_clone: { bg: "linear-gradient(145deg,#0e1218 0%,#1c2838 45%,#0e0e10 100%)", accent: "#6080b0", label: "badge" },
+  drop_swap: { bg: "linear-gradient(150deg,#0a1014 0%,#143040 50%,#0a0e12 100%)", accent: "#3a90b0", label: "drop" },
+  arson_scout: { bg: "linear-gradient(155deg,#140c08 0%,#3a2010 40%,#100808 100%)", accent: "#e07040", label: "scout" },
+  food_truck: { bg: "linear-gradient(145deg,#141210 0%,#3a2e18 45%,#0e0e10 100%)", accent: "#c9a227", label: "till" },
+  jewel_case: { bg: "linear-gradient(150deg,#121018 0%,#2a1838 40%,#0e0e10 100%)", accent: "#d4a017", label: "glass" },
+  meter_maid: { bg: "linear-gradient(145deg,#0e1214 0%,#183038 50%,#0e0e10 100%)", accent: "#40c0c8", label: "plates" },
+  dock_pierce: { bg: "linear-gradient(150deg,#0a1014 0%,#143040 50%,#0a0e12 100%)", accent: "#3a90b0", label: "crate" },
+  hotel_safe: { bg: "linear-gradient(145deg,#0a0810 0%,#241838 45%,#0c0a10 100%)", accent: "#9060c0", label: "suite" },
   armored: { bg: "linear-gradient(150deg,#101014 0%,#2a2a38 40%,#0c0c10 100%)", accent: "#8890a8", label: "lobby" },
   casino_cage: { bg: "linear-gradient(160deg,#140e08 0%,#3a2810 45%,#100c08 100%)", accent: "#d4a017", label: "cage" },
+  evidence_room: { bg: "linear-gradient(145deg,#0e1214 0%,#183038 50%,#0e0e10 100%)", accent: "#40c0c8", label: "evidence" },
+  private_vault: { bg: "linear-gradient(150deg,#0a0810 0%,#241838 40%,#0c0a10 100%)", accent: "#9060c0", label: "vault" },
+  evidence_swap: { bg: "linear-gradient(145deg,#0c1018 0%,#1c2838 45%,#0e0e10 100%)", accent: "#6080b0", label: "swap" },
   harbor: { bg: "linear-gradient(150deg,#0a1014 0%,#143040 50%,#0a0e12 100%)", accent: "#3a90b0", label: "container" },
+  museum: { bg: "linear-gradient(145deg,#101014 0%,#2a2a38 40%,#0c0c10 100%)", accent: "#8890a8", label: "gallery" },
+  gang_stash: { bg: "linear-gradient(160deg,#120e10 0%,#3a1520 40%,#1a0a10 100%)", accent: "#e05050", label: "stash" },
+  chop_shop: { bg: "linear-gradient(155deg,#101010 0%,#2a2418 45%,#0e0e10 100%)", accent: "#a08040", label: "bay" },
+  bond_fraud: { bg: "linear-gradient(145deg,#0c1018 0%,#1c2838 45%,#0e0e10 100%)", accent: "#6080b0", label: "bonds" },
+  substation_copper: { bg: "linear-gradient(150deg,#101010 0%,#2a2418 40%,#0e0e10 100%)", accent: "#a08040", label: "copper" },
+  hospital_vault: { bg: "linear-gradient(145deg,#0e1214 0%,#183038 50%,#0e0e10 100%)", accent: "#40c0c8", label: "ward vault" },
+  airport_cargo: { bg: "linear-gradient(150deg,#0a1014 0%,#143040 50%,#0a0e12 100%)", accent: "#3a90b0", label: "cargo" },
+  aide_blackmail: { bg: "linear-gradient(145deg,#0c1018 0%,#1c2838 45%,#0e0e10 100%)", accent: "#6080b0", label: "aide" },
+  train_arms: { bg: "linear-gradient(150deg,#0c0c10 0%,#2a2a38 40%,#0c0c10 100%)", accent: "#8890a8", label: "rail yard" },
   courier: { bg: "linear-gradient(145deg,#100c14 0%,#281838 45%,#0c0a10 100%)", accent: "#9060c0", label: "courier" },
 };
 
-/** Generated crime card art where available; procedural SVG fallback otherwise */
+/** Generated crime card art — all 48 V1 crimes */
 const CRIME_ART: Record<string, string> = {
   shoplift: "/art/crimes/shoplift.webp",
   pickpocket: "/art/crimes/pickpocket.webp",
-  vending: "/art/crimes/vending.webp",
   bicycle: "/art/crimes/bicycle.webp",
+  parking_meter: "/art/crimes/parking_meter.webp",
+  fake_charity: "/art/crimes/fake_charity.webp",
+  vending: "/art/crimes/vending.webp",
+  delivery_package: "/art/crimes/delivery_package.webp",
+  basic_lock: "/art/crimes/basic_lock.webp",
+  street_sign: "/art/crimes/street_sign.webp",
+  short_change: "/art/crimes/short_change.webp",
+  cafe_phone: "/art/crimes/cafe_phone.webp",
+  coinop_scam: "/art/crimes/coinop_scam.webp",
+  laundry_pouch: "/art/crimes/laundry_pouch.webp",
+  bus_pass: "/art/crimes/bus_pass.webp",
+  atm_surf: "/art/crimes/atm_surf.webp",
+  construction_skip: "/art/crimes/construction_skip.webp",
   mug: "/art/crimes/mug.webp",
   car_breakin: "/art/crimes/car_breakin.webp",
   warehouse: "/art/crimes/warehouse.webp",
+  courier_hijack: "/art/crimes/courier_hijack.webp",
   pharmacy: "/art/crimes/pharmacy.webp",
+  race_skim: "/art/crimes/race_skim.webp",
+  advanced_lock: "/art/crimes/advanced_lock.webp",
+  catalytic: "/art/crimes/catalytic.webp",
+  badge_clone: "/art/crimes/badge_clone.webp",
+  drop_swap: "/art/crimes/drop_swap.webp",
+  arson_scout: "/art/crimes/arson_scout.webp",
+  food_truck: "/art/crimes/food_truck.webp",
+  jewel_case: "/art/crimes/jewel_case.webp",
+  meter_maid: "/art/crimes/meter_maid.webp",
+  dock_pierce: "/art/crimes/dock_pierce.webp",
+  hotel_safe: "/art/crimes/hotel_safe.webp",
   armored: "/art/crimes/armored.webp",
   casino_cage: "/art/crimes/casino_cage.webp",
+  evidence_room: "/art/crimes/evidence_room.webp",
+  private_vault: "/art/crimes/private_vault.webp",
+  evidence_swap: "/art/crimes/evidence_swap.webp",
   harbor: "/art/crimes/harbor.webp",
+  museum: "/art/crimes/museum.webp",
+  gang_stash: "/art/crimes/gang_stash.webp",
+  chop_shop: "/art/crimes/chop_shop.webp",
+  bond_fraud: "/art/crimes/bond_fraud.webp",
+  substation_copper: "/art/crimes/substation_copper.webp",
+  hospital_vault: "/art/crimes/hospital_vault.webp",
+  airport_cargo: "/art/crimes/airport_cargo.webp",
+  aide_blackmail: "/art/crimes/aide_blackmail.webp",
+  train_arms: "/art/crimes/train_arms.webp",
   courier: "/art/crimes/courier.webp",
 };
 
@@ -45,6 +117,12 @@ export const NPC_ART: Record<string, string> = {
   dr_smuggler: "/art/npcs/dr_smuggler.webp",
   dr_longshore: "/art/npcs/dr_longshore.webp",
   dr_lookout: "/art/npcs/dr_lookout.webp",
+  ac_intern: "/art/npcs/ac_intern.webp",
+  ac_security: "/art/npcs/ac_security.webp",
+  sy_exec: "/art/npcs/sy_exec.webp",
+  sy_guard: "/art/npcs/sy_guard.webp",
+  oc_thug: "/art/npcs/oc_thug.webp",
+  oc_runner: "/art/npcs/oc_runner.webp",
 };
 
 export const CONTACT_ART: Record<string, string> = {
@@ -61,8 +139,12 @@ export const CONTACT_ART: Record<string, string> = {
 export const JOB_ART: Record<string, string> = {
   retail: "/art/jobs/retail.webp",
   kitchen: "/art/jobs/kitchen.webp",
+  warehouse: "/art/jobs/warehouse.webp",
   dockhand: "/art/jobs/dockhand.webp",
   driver: "/art/jobs/driver.webp",
+  orderly: "/art/jobs/orderly.webp",
+  casino: "/art/jobs/casino.webp",
+  citydesk: "/art/jobs/citydesk.webp",
 };
 
 /** Gym track strips — keyed by store stat */
@@ -82,6 +164,12 @@ export const PROPERTY_ART: Record<string, string> = {
   dr_cot: "/art/properties/dr_cot.webp",
   dr_bay: "/art/properties/dr_bay.webp",
   dr_safe: "/art/properties/dr_safe.webp",
+  ac_studio: "/art/properties/ac_studio.webp",
+  ac_wardflat: "/art/properties/ac_wardflat.webp",
+  sy_condo: "/art/properties/sy_condo.webp",
+  sy_pent: "/art/properties/sy_pent.webp",
+  oc_room: "/art/properties/oc_room.webp",
+  oc_walkup: "/art/properties/oc_walkup.webp",
 };
 
 export const AWARD_CAT_ART: Record<string, string> = {
@@ -104,7 +192,52 @@ export const GIG_ART: Record<string, string> = {
   civic_clipboard: "/art/gigs/civic_clipboard.webp",
 };
 
+export const DISTRICT_ART: Record<string, string> = {
+  glassrow: "/art/districts/glassrow.webp",
+  millstone: "/art/districts/millstone.webp",
+  docksreach: "/art/districts/docksreach.webp",
+  ashcourt: "/art/districts/ashcourt.webp",
+  spireyard: "/art/districts/spireyard.webp",
+  oldcommons: "/art/districts/oldcommons.webp",
+};
+
+export const HEIST_ART: Record<string, string> = {
+  tram_skim: "/art/heists/tram_skim.webp",
+  yard_boost: "/art/heists/yard_boost.webp",
+  commons_sweep: "/art/heists/commons_sweep.webp",
+  bay_pierce: "/art/heists/bay_pierce.webp",
+  ward_diversion: "/art/heists/ward_diversion.webp",
+  spire_float: "/art/heists/spire_float.webp",
+  soft_house_run: "/art/heists/soft_house_run.webp",
+  bond_desk: "/art/heists/bond_desk.webp",
+};
+
+export const HEIST_HERO = "/art/heists/hero.webp";
+
+export const SAFEHOUSE_ROOM_ART: Record<string, string> = {
+  vault: "/art/safehouse/vault.webp",
+  cot: "/art/safehouse/cot.webp",
+  study: "/art/safehouse/study.webp",
+  armory: "/art/safehouse/armory.webp",
+  garage: "/art/safehouse/garage.webp",
+};
+
+export const SAFEHOUSE_HERO = "/art/safehouse/hero.webp";
+
+export const BUSINESS_HERO = "/art/bank/hero.webp";
+
+export const BUSINESS_FRONT_ART: Record<string, string> = {
+  corner_laundry: "/art/crimes/laundry_pouch.webp",
+  courier_front: "/art/crimes/courier.webp",
+  pawn_consortium: "/art/crimes/jewel_case.webp",
+  holding_co: "/art/properties/sy_pent.webp",
+};
+
 export const VEX_ART = "/art/contacts/vex.webp";
+
+/** Shared focal crop so faces / landmarks sit above the fold */
+const HERO_BG_POS = "center 30%";
+const CARD_BG_POS = "center 30%";
 
 export function CrimeArt({ crimeId, locked }: { crimeId: string; locked?: boolean }) {
   const photo = CRIME_ART[crimeId];
@@ -120,7 +253,7 @@ export function CrimeArt({ crimeId, locked }: { crimeId: string; locked?: boolea
         position: "relative",
         height: 128,
         background: photo
-          ? `center/cover no-repeat url(${photo}), ${scene.bg}`
+          ? `${CARD_BG_POS}/cover no-repeat url(${photo}), ${scene.bg}`
           : scene.bg,
         overflow: "hidden",
         opacity: locked ? 0.5 : 1,
@@ -252,7 +385,7 @@ export function PageHero({
         : "8px var(--hero-pad-x)",
     minHeight: strip ? "var(--hero-strip-h)" : tall ? "var(--hero-min-h-tall)" : image ? "var(--hero-min-h)" : undefined,
     background: image
-      ? `linear-gradient(105deg,rgba(8,8,10,0.92) 0%,rgba(8,8,10,0.55) 45%,rgba(8,8,10,0.75) 100%), center/cover no-repeat url(${image})`
+      ? `linear-gradient(105deg,rgba(8,8,10,0.92) 0%,rgba(8,8,10,0.55) 45%,rgba(8,8,10,0.75) 100%), ${HERO_BG_POS}/cover no-repeat url(${image})`
       : tones[tone],
     borderBottom: "1px solid var(--border)",
     overflow: "hidden",
@@ -360,7 +493,7 @@ export function SceneBanner({
         border: "1px solid var(--border)",
         borderRadius: "var(--r1)",
         overflow: "hidden",
-        background: `center/cover no-repeat url(${image}), #121218`,
+        background: `${HERO_BG_POS}/cover no-repeat url(${image}), #121218`,
         marginBottom: 12,
         boxShadow: "inset 0 0 40px rgba(0,0,0,0.45)",
       }}
@@ -421,7 +554,7 @@ export function ArtTile({
         style={{
           position: "relative",
           height: 120,
-          background: `center/cover no-repeat url(${image}), #151518`,
+          background: `${CARD_BG_POS}/cover no-repeat url(${image}), #151518`,
         }}
       >
         <div
@@ -496,16 +629,6 @@ export function ArtTile({
     </article>
   );
 }
-
-export const DISTRICT_ART: Record<string, string> = {
-  glassrow: "/art/districts/glassrow.webp",
-  millstone: "/art/districts/millstone.webp",
-  docksreach: "/art/districts/docksreach.webp",
-  // V1 districts reuse existing plates until dedicated art lands
-  ashcourt: "/art/districts/millstone.webp",
-  spireyard: "/art/districts/glassrow.webp",
-  oldcommons: "/art/districts/docksreach.webp",
-};
 
 export const SCHOOL_ART: Record<string, string> = {
   "Street Electives": "/art/campus/street.webp",

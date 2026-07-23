@@ -50,10 +50,12 @@ import { evaluateAwards } from "@/game/awards";
 import { refreshBazaarState, sellPrice } from "@/game/bazaar";
 import { applyContactAction, contactTipOddsBonus } from "@/game/contacts";
 import { canDoGig, computeGigPay } from "@/game/gigs";
+import { licenseJobPayBonus } from "@/game/licenses";
 import { masteryOddsBonus, masteryTitleFor } from "@/game/mastery";
 import {
   canBuyBusiness,
   canBuyPolitical,
+  canHireBusinessStaff,
   laundryFeeRate,
   nextBusinessTier,
   nextPoliticalRung,
@@ -66,10 +68,25 @@ import {
   respectStreetOddsBonus,
   respectTitle,
   RESPECT_FLEX,
+  BUSINESS_STAFF_HIRE_CLEAN,
+  BUSINESS_STAFF_MAX,
   territoryInvestCost,
   territoryOddsBonus,
 } from "@/game/power";
 import { canBuyProperty } from "@/game/properties";
+import {
+  armoryCraftCost,
+  armoryToolModBonus,
+  canAddInventoryStack,
+  canUpgradeRoom,
+  craftRecipeReasons,
+  garageRepairCost,
+  garageRepairReasons,
+  garageTravelMult,
+  nextUpgradeCost,
+  normalizeSafehouseRooms,
+  stashCapacity,
+} from "@/game/safehouse";
 import { applyCallRitual, applyRitualCashBonus, ensureDailyRitual } from "@/game/ritual";
 import { maybeApplyRivalEvents } from "@/game/rival";
 import { pickWeighted, rollD10000, unit01 } from "@/game/rng";
@@ -77,7 +94,8 @@ import { planStreetShopBuy } from "@/game/shops";
 import { applyExecuteChoice, applyPrepStage } from "@/game/heists";
 import { createInitialState, normalizeState, type AwayModalState, type GameState, type ResultModalState } from "@/game/state";
 import { applyCatchUp } from "@/game/tick";
-import type { AwardDef, ContactActionId, DistrictId, HeistExecuteChoice } from "@/game/types";
+import { ARMORY_RECIPES, getSafehouseRoom } from "@/content/safehouse";
+import type { AwardDef, ContactActionId, DistrictId, HeistExecuteChoice, SafehouseRoomId } from "@/game/types";
 
 function actionBlocked(s: GameState, now = Date.now()): boolean {
   if (s.hospitalUntil && now < s.hospitalUntil) return true;
@@ -120,6 +138,9 @@ type Actions = {
   useItem: (itemId: string) => void;
   equipItem: (itemId: string) => void;
   buyProperty: (propertyId: string) => void;
+  upgradeSafehouseRoom: (roomId: SafehouseRoomId) => void;
+  craftArmoryTool: (itemId: string) => void;
+  garageRepair: () => void;
   interactContact: (contactId: string, actionId: ContactActionId) => void;
   investigationCounterplay: (kind: "lawyer" | "burn" | "laylow" | "bribe" | "leave") => void;
   refreshBazaar: () => void;
@@ -132,6 +153,8 @@ type Actions = {
   buyPoliticalRung: () => void;
   buyRespectFlex: (flexId: string, useStreet?: boolean) => void;
   buyBusinessTier: () => void;
+  setBusinessRisk: (risk: 0 | 1) => void;
+  hireBusinessStaff: () => void;
   runHeistPrep: (heistId: string) => void;
   executeHeist: (heistId: string, choice: HeistExecuteChoice) => void;
   exportSave: () => string;
@@ -202,6 +225,7 @@ function equippedToolMod(s: GameState): number {
     const item = getItem(slot.itemId);
     if (item?.toolMod) mod += item.toolMod;
   }
+  mod += armoryToolModBonus(normalizeSafehouseRooms(s.safehouseRooms));
   return mod;
 }
 
@@ -210,11 +234,16 @@ function hasItem(s: GameState, itemId: string): boolean {
 }
 
 function addItem(s: GameState, itemId: string, qty = 1): GameState {
+  const rooms = normalizeSafehouseRooms(s.safehouseRooms);
   const inv = [...s.inventory];
   const idx = inv.findIndex((i) => i.itemId === itemId);
-  if (idx >= 0) inv[idx] = { ...inv[idx], qty: inv[idx].qty + qty };
-  else inv.push({ itemId, qty });
-  return { ...s, inventory: inv };
+  if (idx >= 0) {
+    inv[idx] = { ...inv[idx], qty: inv[idx].qty + qty };
+  } else {
+    if (!canAddInventoryStack(rooms, inv.length, false)) return s;
+    inv.push({ itemId, qty });
+  }
+  return { ...s, inventory: inv, safehouseRooms: rooms };
 }
 
 function removeItem(s: GameState, itemId: string, qty = 1): GameState {
@@ -253,7 +282,7 @@ function loadoutMods(s: GameState): { weaponDmg: number; armorSoak: number; stea
 function updateIdentity(s: GameState): GameState {
   const rank = RANK_TITLES[s.rankIndex] ?? "Nobody";
   const job = s.jobId ? getJob(s.jobId)?.title ?? "Unemployed" : "Unemployed";
-  const edu = s.completedCourses.length ? "Student" : "Street";
+  const edu = s.licenses.length ? "Licensee" : s.completedCourses.length ? "Student" : "Street";
   const best = Object.entries(s.mastery).sort((a, b) => b[1].level - a[1].level)[0];
   const masteryTitle = best ? masteryTitleFor(best[0], best[1].level) ?? "" : "";
   const streetCred = respectTitle(s.power.respect);
@@ -438,7 +467,7 @@ export const useGame = create<GameState & UIState & Actions>()(
         const hourMod = hour >= 20 || hour < 5 ? 3 : -1;
         const district = getDistrict(s.district);
         const districtMod = district?.crimeBias[crime.tier] ?? 0;
-        const eduMod = educationOddsMod(s.completedCourses, crime.family);
+        const eduMod = educationOddsMod(s.completedCourses, crime.family, s.licenses);
         const jobMod = jobSpecialtyOddsMod(s.jobId, crime.id);
         const masteryBonus = 0; // odds edge applied below as % — not skill points
         const chainMod =
@@ -711,7 +740,8 @@ export const useGame = create<GameState & UIState & Actions>()(
         const happyPen = 1 - happyJobQualityPenalty(s.happy);
         const districtBonus = job.districtBias.includes(s.district) ? 1.1 : 1;
         const courseBonus = 1 + s.completedCourses.reduce((a, id) => a + ((getCourse(id)?.jobPayBonus ?? 0) / 100), 0);
-        let pay = Math.round(job.basePay * mult * districtBonus * courseBonus * happyPen);
+        const licenseBonus = 1 + licenseJobPayBonus(s.licenses) / 100;
+        let pay = Math.round(job.basePay * mult * districtBonus * courseBonus * licenseBonus * happyPen);
         const xpGain = Math.round(10 * mult);
 
         {
@@ -968,8 +998,11 @@ export const useGame = create<GameState & UIState & Actions>()(
         if (s.clean < d.travelCost) return;
         if (s.heat >= 81) return;
         s.clean -= d.travelCost;
-        s.travelUntil = Date.now() + d.travelSeconds * 1000;
+        const rooms = normalizeSafehouseRooms(s.safehouseRooms);
+        const secs = Math.max(15, Math.round(d.travelSeconds * garageTravelMult(rooms)));
+        s.travelUntil = Date.now() + secs * 1000;
         s.travelTarget = district;
+        s.safehouseRooms = rooms;
         s.actionIndex += 1;
         if (s.investigation >= 2 && unit01(s.seed, "checkpoint", s.actionIndex) < 0.25) {
           s.heat += 10;
@@ -1215,17 +1248,17 @@ export const useGame = create<GameState & UIState & Actions>()(
       },
 
       cleanMoney: (amount) => {
-        let s: GameState = { ...get() };
+        let s: GameState = normalizeState(get());
         if (s.street < amount || amount <= 0) return;
-        const rate = laundryFeeRate(s.power.businessTierOwned);
+        const rate = laundryFeeRate(s.power);
         const fee = Math.round(amount * rate);
         s.street -= amount;
         s.clean += amount - fee;
         const via =
           s.power.businessTierOwned > 0
             ? ` via front (${Math.round(rate * 100)}%)`
-            : ` (fee $${fee})`;
-        s = pushLog(s, `Cleaned ${formatMoney(amount)}${via}`, "system");
+            : ` via bank cage (${Math.round(rate * 100)}%)`;
+        s = pushLog(s, `Cleaned ${formatMoney(amount)}${via} −$${fee} fee`, "system");
         set(s);
       },
 
@@ -1233,6 +1266,13 @@ export const useGame = create<GameState & UIState & Actions>()(
         let s: GameState = normalizeState(get());
         const item = getItem(itemId);
         if (!item) return;
+        const rooms = normalizeSafehouseRooms(s.safehouseRooms);
+        s.safehouseRooms = rooms;
+        if (!canAddInventoryStack(rooms, s.inventory.length, hasItem(s, itemId))) {
+          s = pushLog(s, `Stash full (${s.inventory.length}/${stashCapacity(rooms)}) — upgrade Vault`, "system");
+          set(s);
+          return;
+        }
         const district = getDistrict(s.district);
         const price = item.baseValue;
         if (withStreet) {
@@ -1299,6 +1339,7 @@ export const useGame = create<GameState & UIState & Actions>()(
         if (!canBuyProperty(prop, s)) return;
         s.clean -= prop.cost;
         s.ownedProperties = [...s.ownedProperties, prop.id];
+        s.safehouseRooms = normalizeSafehouseRooms(s.safehouseRooms);
         s = pushLog(s, `Bought ${prop.name} (${prop.district})`, "system");
         s = maybeRival(s);
         const awardPass = applyAwardPass(s);
@@ -1311,9 +1352,100 @@ export const useGame = create<GameState & UIState & Actions>()(
             lines: [
               `Keys: ${prop.name}`,
               `Rent $${prop.weeklyIncome}/wk · Upkeep $${prop.weeklyUpkeep}/wk`,
+              "Safehouse rooms unlock on /safehouse",
               ...awardPass.unlocked.map((a) => `Award: ${a.name}`),
             ],
             cashDelta: -prop.cost,
+          },
+        });
+      },
+
+      upgradeSafehouseRoom: (roomId) => {
+        let s: GameState = normalizeState(get());
+        if (!s.created) return;
+        s.safehouseRooms = normalizeSafehouseRooms(s.safehouseRooms);
+        if (!canUpgradeRoom(roomId, s)) return;
+        const def = getSafehouseRoom(roomId);
+        if (!def) return;
+        const lvl = s.safehouseRooms[roomId] ?? 0;
+        const cost = nextUpgradeCost(roomId, lvl);
+        if (!cost) return;
+        s.clean -= cost.clean;
+        s.street -= cost.street;
+        s.safehouseRooms = { ...s.safehouseRooms, [roomId]: lvl + 1 };
+        const next = lvl + 1;
+        s = pushLog(s, `Safehouse: ${def.name} → L${next}`, "system");
+        set({
+          ...s,
+          resultModal: {
+            title: "SUCCESS",
+            lines: [
+              `${def.name} upgraded to level ${next}`,
+              cost.clean ? `−$${cost.clean} clean` : null,
+              cost.street ? `−$${cost.street} street` : null,
+              `Stash capacity ${stashCapacity(s.safehouseRooms)} stacks`,
+            ].filter(Boolean) as string[],
+            cashDelta: -(cost.clean + cost.street),
+          },
+        });
+      },
+
+      craftArmoryTool: (itemId) => {
+        let s: GameState = normalizeState(get());
+        if (!s.created) return;
+        s.safehouseRooms = normalizeSafehouseRooms(s.safehouseRooms);
+        const reasons = craftRecipeReasons(itemId, {
+          ownedProperties: s.ownedProperties,
+          street: s.street,
+          safehouseRooms: s.safehouseRooms,
+          inventoryStacks: s.inventory.length,
+          hasItem: hasItem(s, itemId),
+        });
+        if (reasons.length) return;
+        const recipe = ARMORY_RECIPES.find((r) => r.itemId === itemId);
+        if (!recipe) return;
+        const cost = armoryCraftCost(itemId, s.safehouseRooms.armory);
+        if (cost == null || s.street < cost) return;
+        const item = getItem(itemId);
+        if (!item) return;
+        s.street -= cost;
+        s = addItem(s, itemId);
+        s = pushLog(s, `Armory crafted ${item.name} (−$${cost} street)`, "system");
+        set({
+          ...s,
+          resultModal: {
+            title: "SUCCESS",
+            lines: [`Crafted ${item.name} at the rack`, `−$${cost} street`],
+            cashDelta: -cost,
+          },
+        });
+      },
+
+      garageRepair: () => {
+        let s: GameState = normalizeState(get());
+        if (!s.created) return;
+        s.safehouseRooms = normalizeSafehouseRooms(s.safehouseRooms);
+        if (garageRepairReasons(s).length) return;
+        const cost = garageRepairCost(s.safehouseRooms);
+        s.street -= cost;
+        const lifeGain = 12 + s.safehouseRooms.garage * 6;
+        s.life = Math.min(s.lifeMax, s.life + lifeGain);
+        s.wounds = {
+          arm: Math.max(0, s.wounds.arm - 1),
+          leg: Math.max(0, s.wounds.leg - 1),
+        };
+        s.stress = Math.max(0, s.stress - 3);
+        s = pushLog(s, `Garage bench repair (−$${cost} street, life +${lifeGain})`, "system");
+        set({
+          ...s,
+          resultModal: {
+            title: "SUCCESS",
+            lines: [
+              `Patched up in the bay (+${lifeGain} life)`,
+              s.wounds.arm || s.wounds.leg ? "Wounds eased one notch" : "Wounds clear",
+              `−$${cost} street`,
+            ],
+            cashDelta: -cost,
           },
         });
       },
@@ -1402,6 +1534,13 @@ export const useGame = create<GameState & UIState & Actions>()(
         const listing = s.bazaar.listings[listingIndex];
         if (!listing) return;
         if (s.clean < listing.price) return;
+        const rooms = normalizeSafehouseRooms(s.safehouseRooms);
+        s.safehouseRooms = rooms;
+        if (!canAddInventoryStack(rooms, s.inventory.length, hasItem(s, listing.itemId))) {
+          s = pushLog(s, `Stash full — upgrade Vault at /safehouse`, "system");
+          set(s);
+          return;
+        }
         s.clean -= listing.price;
         s = addItem(s, listing.itemId);
         s = pushLog(
@@ -1503,13 +1642,41 @@ export const useGame = create<GameState & UIState & Actions>()(
       },
 
       buyBusinessTier: () => {
-        let s: GameState = { ...get() };
+        let s: GameState = normalizeState(get());
         const next = nextBusinessTier(s.power.businessTierOwned);
         if (!next || !canBuyBusiness(s)) return;
         s.clean -= next.costClean;
         s.power = { ...s.power, businessTierOwned: s.power.businessTierOwned + 1 };
         s = pushLog(s, `Business empire: ${next.name}`, "diegetic");
         s = updateIdentity(s);
+        set(s);
+      },
+
+      setBusinessRisk: (risk) => {
+        let s: GameState = normalizeState(get());
+        if (s.power.businessTierOwned <= 0) return;
+        if (risk !== 0 && risk !== 1) return;
+        s.power = { ...s.power, businessRisk: risk };
+        s = pushLog(
+          s,
+          risk === 1
+            ? "Books set aggressive — more clean/hr, audits possible"
+            : "Books set conservative — quieter ledgers",
+          "system"
+        );
+        set(s);
+      },
+
+      hireBusinessStaff: () => {
+        let s: GameState = normalizeState(get());
+        if (!canHireBusinessStaff(s)) return;
+        s.clean -= BUSINESS_STAFF_HIRE_CLEAN;
+        s.power = { ...s.power, businessStaff: s.power.businessStaff + 1 };
+        s = pushLog(
+          s,
+          `Hired front clerk (${s.power.businessStaff}/${BUSINESS_STAFF_MAX}) −${formatMoney(BUSINESS_STAFF_HIRE_CLEAN)}`,
+          "system"
+        );
         set(s);
       },
 

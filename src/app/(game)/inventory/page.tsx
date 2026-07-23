@@ -1,6 +1,7 @@
 "use client";
 
 import { getItem } from "@/content/catalog";
+import { stashCapacity, normalizeSafehouseRooms } from "@/game/safehouse";
 import { CollapsiblePanel } from "@/components/ui/CollapsiblePanel";
 import { GameButton } from "@/components/ui/GameButton";
 import { InfoRow, InfoRowBlock } from "@/components/ui/InfoRow";
@@ -13,19 +14,20 @@ export default function InventoryPage() {
   const s = useGame();
   const equipped = s.inventory.filter((i) => i.equipped);
   const packs = s.inventory;
+  const cap = stashCapacity(normalizeSafehouseRooms(s.safehouseRooms));
 
   return (
     <div className={hub.wrap}>
       <PageHero
         title="Inventory"
-        subtitle="Tools, weapons, consumables — equip before the attempt."
+        subtitle="Tools, weapons, consumables — equip before the attempt. Vault raises stash stack cap."
         tone="default"
         image="/art/city/skyline.webp"
       />
 
       <CollapsiblePanel
-        title={`Kit · ${packs.length} stacks`}
-        footer="Equip changes crime tool mods and attack loadout"
+        title={`Kit · ${packs.length}/${cap} stacks`}
+        footer="Equip changes crime tool mods and attack loadout · Vault raises cap"
       >
         {packs.length === 0 ? (
           <p className={hub.sub} style={{ padding: "8px 0" }}>

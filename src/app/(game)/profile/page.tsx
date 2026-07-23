@@ -36,6 +36,7 @@ export default function ProfilePage() {
             <div style={{ color: "var(--text-dim)" }}>{s.identitySubtitle}</div>
             <div>District: {s.district}</div>
             <div>Courses completed: {s.completedCourses.length}</div>
+            <div>Licenses: {s.licenses.length}</div>
           </div>
           <div className={styles.card}>
             <div>Networth {formatMoney(s.clean + s.street + s.bank)}</div>

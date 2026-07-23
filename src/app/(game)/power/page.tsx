@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { DISTRICTS, getCourse, getDistrict } from "@/content/catalog";
 import { formatMoney } from "@/game/formulas";
 import {
@@ -42,7 +43,7 @@ export default function PowerPage() {
   const ownedBiz = ownedBusiness(s.power.businessTierOwned);
   const polOk = canBuyPolitical(s);
   const bizOk = canBuyBusiness(s);
-  const laundryPct = Math.round(laundryFeeRate(s.power.businessTierOwned) * 100);
+  const laundryPct = Math.round(laundryFeeRate(s.power) * 100);
   const streetOdds = Math.round(respectStreetOddsBonus(s.power.respect) * 1000) / 10;
   const lootMult = respectLootMult(s.power.respect);
   const bailMult = politicalBailMult(s.power.politicalRung);
@@ -244,6 +245,8 @@ export default function PowerPage() {
           {ownedBiz
             ? ` · ~${formatMoney(ownedBiz.weeklyCleanIncome)}/wk base (+territory)`
             : " · bank laundry stays 20% until you own a front"}
+          {" · "}
+          <Link href="/business">Business desk</Link> for P&amp;L, staff, risk, and laundry.
         </p>
         <table className={styles.table}>
           <thead>

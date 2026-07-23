@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { bankInterestRate, transcriptPerkSum } from "@/game/careers";
 import { formatMoney } from "@/game/formulas";
@@ -13,14 +14,17 @@ import styles from "../tables.module.css";
 export default function BankPage() {
   const s = useGame();
   const [amt, setAmt] = useState(100);
-  const rate = bankInterestRate(s.completedCourses);
+  const rate = bankInterestRate(s.completedCourses, s.licenses);
   const transcript = transcriptPerkSum(s.completedCourses);
   const ratePct = (rate * 100).toFixed(1);
   const streetFee = Math.round(Math.max(0, amt) * 0.15);
   const streetNet = Math.max(0, amt) - streetFee;
-  const laundryRate = laundryFeeRate(s.power.businessTierOwned);
+  const laundryRate = laundryFeeRate(s.power);
   const cleanFee = Math.round(Math.max(0, amt) * laundryRate);
+  const cleanNet = Math.max(0, amt) - cleanFee;
   const front = ownedBusiness(s.power.businessTierOwned);
+  const bankCagePct = 20;
+  const empirePct = Math.round(laundryRate * 100);
 
   const presets = useMemo(() => [100, 500, 1000, 5000], []);
 
@@ -36,7 +40,7 @@ export default function BankPage() {
 
       <Module
         title="Account"
-        footer={`~${ratePct}% / week on balance · Commerce courses raise the rate`}
+        footer={`~${ratePct}% / week on balance · Commerce courses + licenses raise the rate`}
       >
         <div className={styles.grid2}>
           <div className={styles.card}>
@@ -63,11 +67,34 @@ export default function BankPage() {
               Street <span className="tabular">{formatMoney(s.street)}</span>
             </div>
             <p className={styles.sub} style={{ marginTop: 6 }}>
-              Street→bank fee 15% · Street→clean laundry {Math.round(laundryRate * 100)}%
-              {front ? ` (${front.name})` : ""}
+              Street→bank fee 15% · Street→clean laundry {empirePct}%
+              {front ? ` via ${front.name}` : " (bank cage)"}
             </p>
           </div>
         </div>
+      </Module>
+
+      <Module
+        title="Laundry — street→clean"
+        footer={
+          front
+            ? `Empire rate ${empirePct}% (risk/staff can shave more) · manage books on Business`
+            : `Bank cage ${bankCagePct}% until you own a front — open Business to climb the ladder`
+        }
+      >
+        <p className={styles.sub}>
+          Wash street into clean cash. Fee skimmed up front
+          {amt > 0 ? (
+            <>
+              {" "}
+              — this amount −{formatMoney(cleanFee)} →{" "}
+              <span className="money-pos">{formatMoney(cleanNet)}</span>
+            </>
+          ) : null}
+          .{" "}
+          <Link href="/business">Business desk</Link>
+          {front ? " runs the same fee with P&L + staff." : " unlocks cheaper laundry."}
+        </p>
       </Module>
 
       <Module title="Transfer">
@@ -110,7 +137,7 @@ export default function BankPage() {
         </div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
           <GameButton variant="secondary" disabled={amt <= 0 || s.street < amt} onClick={() => s.cleanMoney(amt)}>
-            Laundry street→clean (−{formatMoney(cleanFee)} / {Math.round(laundryRate * 100)}%)
+            Laundry street→clean (−{formatMoney(cleanFee)} / {empirePct}%)
           </GameButton>
         </div>
       </Module>

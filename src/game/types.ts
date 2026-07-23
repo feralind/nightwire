@@ -70,6 +70,23 @@ export type CourseDef = {
   requiresCourse?: string;
 };
 
+/** Permanent cert granted when its course completes — legal economy multipliers */
+export type LicenseDef = {
+  id: string;
+  name: string;
+  /** Course that grants this license on completion */
+  courseId: string;
+  blurb: string;
+  jobPayBonus?: number;
+  bankInterestBonus?: number;
+  oddsBonus?: number;
+  oddsFamilies?: Array<"petty" | "street" | "heavy">;
+  /** Clean $/week while holding (scaled by hours in tick) */
+  weeklyStipend?: number;
+  /** One-shot legitimacy when first earned (not on backfill) */
+  legitimacyGain?: number;
+};
+
 /** Short legal contracts — available unemployed; clean cash faucet */
 export type GigDef = {
   id: string;
@@ -141,6 +158,19 @@ export type PropertyDef = {
   blurb: string;
   /** Soft heat pressure multiplier when raided (1 = normal) */
   raidRisk?: number;
+};
+
+/** Safehouse room upgrades — global levels across owned properties */
+export type SafehouseRoomId = "vault" | "cot" | "study" | "armory" | "garage";
+
+export type SafehouseRoomDef = {
+  id: SafehouseRoomId;
+  name: string;
+  blurb: string;
+  maxLevel: 3;
+  /** Cost to reach level 1 / 2 / 3 */
+  cleanCosts: [number, number, number];
+  streetCosts: [number, number, number];
 };
 
 export type AwardCategory = "crime" | "work" | "body" | "city" | "money" | "story";

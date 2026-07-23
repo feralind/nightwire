@@ -1,3 +1,9 @@
+import { syncLicenses } from "@/game/licenses";
+import {
+  EMPTY_SAFEHOUSE_ROOMS,
+  normalizeSafehouseRooms,
+  type SafehouseRooms,
+} from "@/game/safehouse";
 import type { DistrictId, HeistExecutePhase, HeistRank } from "@/game/types";
 
 export type InvestigationStage = 0 | 1 | 2 | 3 | 4;
@@ -71,6 +77,10 @@ export type PowerTracks = {
   politicalRung: number;
   respect: number;
   businessTierOwned: number;
+  /** 0 = closed books, 1 = aggressive accounting (more clean/hr, inspection risk) */
+  businessRisk: 0 | 1;
+  /** Hired clerks on the front (0–2) — wages + soft laundry/income lift */
+  businessStaff: number;
 };
 
 export type LifetimeStats = {
@@ -180,9 +190,13 @@ export type GameState = {
   activeCourseId: string | null;
   courseProgressHours: number;
   completedCourses: string[];
+  /** License ids earned from completed courses */
+  licenses: string[];
 
   inventory: InventorySlot[];
   ownedProperties: string[];
+  /** Global safehouse room levels (0–3) across owned properties */
+  safehouseRooms: SafehouseRooms;
 
   chainFamily: string | null;
   chainLevel: number;
@@ -314,8 +328,10 @@ export function createInitialState(partial?: Partial<GameState>): GameState {
     activeCourseId: null,
     courseProgressHours: 0,
     completedCourses: [],
+    licenses: [],
     inventory: [{ itemId: "gloves", qty: 1 }],
     ownedProperties: [],
+    safehouseRooms: { ...EMPTY_SAFEHOUSE_ROOMS },
     chainFamily: null,
     chainLevel: 0,
     chainUpdatedAt: now,
@@ -349,6 +365,8 @@ export function createInitialState(partial?: Partial<GameState>): GameState {
       politicalRung: 0,
       respect: 0,
       businessTierOwned: 0,
+      businessRisk: 0,
+      businessStaff: 0,
     },
     bazaar: { listings: [], day: 0 },
     directorEvent: null,
@@ -362,8 +380,19 @@ export function createInitialState(partial?: Partial<GameState>): GameState {
   const merged = { ...base, ...partial };
   return {
     ...merged,
+    power: {
+      ...base.power,
+      ...(partial?.power ?? {}),
+      territory: {
+        ...base.power.territory,
+        ...(partial?.power?.territory ?? {}),
+      },
+      businessRisk: partial?.power?.businessRisk === 1 ? 1 : 0,
+      businessStaff: Math.max(0, Math.min(2, Math.floor(partial?.power?.businessStaff ?? 0))),
+    },
     lifetime: partial?.lifetime ?? emptyLifetime(merged.district),
     unlockedAwards: partial?.unlockedAwards ?? {},
+    licenses: syncLicenses(merged.completedCourses ?? [], merged.licenses ?? []),
   };
 }
 
@@ -383,6 +412,8 @@ export function normalizeState(s: GameState): GameState {
   };
   // Drop legacy stub property ids that aren't in the catalog
   const ownedProperties = (s.ownedProperties ?? []).filter((id) => !id.startsWith("prop_"));
+  const licenses = syncLicenses(s.completedCourses ?? [], s.licenses ?? []);
+  const safehouseRooms = normalizeSafehouseRooms(s.safehouseRooms);
   return {
     ...s,
     wounds: s.wounds ?? { arm: 0, leg: 0 },
@@ -395,9 +426,12 @@ export function normalizeState(s: GameState): GameState {
     gigLog: s.gigLog ?? [],
     gigsThisWeek: s.gigsThisWeek ?? 0,
     lastGigId: s.lastGigId ?? null,
+    completedCourses: s.completedCourses ?? [],
+    licenses,
     lifetime,
     unlockedAwards: s.unlockedAwards ?? {},
     ownedProperties,
+    safehouseRooms,
     ritualDay: s.ritualDay ?? 0,
     ritualBonus: s.ritualBonus ?? null,
     rivalPressureAt: s.rivalPressureAt ?? 0,
@@ -416,6 +450,8 @@ export function normalizeState(s: GameState): GameState {
       politicalRung: s.power?.politicalRung ?? 0,
       respect: s.power?.respect ?? 0,
       businessTierOwned: s.power?.businessTierOwned ?? 0,
+      businessRisk: s.power?.businessRisk === 1 ? 1 : 0,
+      businessStaff: Math.max(0, Math.min(2, Math.floor(s.power?.businessStaff ?? 0))),
     },
   };
 }

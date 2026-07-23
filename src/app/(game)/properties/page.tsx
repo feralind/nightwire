@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { DISTRICTS, PROPERTIES, getDistrict } from "@/content/catalog";
 import {
   canBuyProperty,
@@ -56,6 +57,10 @@ export default function PropertiesPage() {
               Weekly rent {formatMoney(income)} · Upkeep {formatMoney(upkeep)} · Net{" "}
               <span className={net >= 0 ? "money-pos" : "money-neg"}>{formatMoney(net)}</span>
               {s.lifetime.rentCollected > 0 ? ` · Lifetime rent ${formatMoney(s.lifetime.rentCollected)}` : ""}
+            </p>
+            <p className={styles.sub}>
+              Room upgrades live on the{" "}
+              <Link href="/safehouse">Safehouse</Link> floorplan — Vault, Cot, Study, Armory, Garage.
             </p>
             <div className={board.grid}>
               {owned.map((p) => (
