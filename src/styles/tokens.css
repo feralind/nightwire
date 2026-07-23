@@ -22,11 +22,15 @@
   --text-link: #7eb6ff;
   --text-warn: #fbbf24;
 
-  /* Semantic bars / money */
-  --life: #ef4444;
+  /* Semantic bars / money — distinct Torn-style vitals */
+  --life: #e23d3d;
+  --life-deep: #8b1a1a;
   --energy: #3b82f6;
+  --energy-deep: #1e3a8a;
   --nerve: #22c55e;
+  --nerve-deep: #14532d;
   --happy: #eab308;
+  --happy-deep: #854d0e;
   --money: #4ade80;
   --danger: #f87171;
   --success: #4ade80;
@@ -48,9 +52,21 @@
   /* Density Classic */
   --pad: 6px;
   --row: 22px;
+  --row-tight: 7px;
   --font: 12px;
   --title: 14px;
   --meta: 11px;
+
+  /* Hero strip (compressed) */
+  --hero-pad-y: 10px;
+  --hero-pad-x: 14px;
+  --hero-min-h: 56px;
+  --hero-min-h-tall: 72px;
+  --hero-title: 18px;
+  --hero-strip-h: 40px;
+
+  /* Nav action badge */
+  --nav-badge: #4a9eff;
 
   /* Radius */
   --r0: 0;

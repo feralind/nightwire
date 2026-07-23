@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { useShallow } from "zustand/react/shallow";
 import { DISTRICTS, HEADLINES, RANK_TITLES, COURSES } from "@/content/catalog";
 import { formatMmSs, formatMoney, heatBand } from "@/game/formulas";
 import { useGame } from "@/store/gameStore";
@@ -97,20 +98,24 @@ function ResourceBar({
   cur,
   max,
   color,
+  deep,
   nextIn,
 }: {
   label: string;
   cur: number;
   max: number;
   color: string;
+  deep: string;
   nextIn: string;
 }) {
   const pct = Math.max(0, Math.min(100, (cur / max) * 100));
-  const full = pct >= 99.5;
+  const full = max > 0 && Math.floor(cur) >= max;
   return (
-    <div className={styles.barCell} aria-label={`${label} ${cur} of ${max}`}>
+    <div className={styles.barCell} aria-label={`${label} ${cur} of ${max}`} style={{ ["--bar-color" as string]: color, ["--bar-deep" as string]: deep }}>
       <div className={styles.barTop}>
-        <span className={styles.barLabel}>{label}</span>
+        <span className={styles.barLabel} style={{ color }}>
+          {label}
+        </span>
         {full && <span className={styles.barFull}>FULL</span>}
       </div>
       <div className={styles.barTrack}>
@@ -118,7 +123,6 @@ function ResourceBar({
           className={styles.barFill}
           style={{
             width: `${pct}%`,
-            ["--bar-color" as string]: color,
           }}
         />
         <div className={styles.barGloss} />
@@ -136,16 +140,68 @@ function ResourceBar({
 export function AppChrome({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const tick = useGame((s) => s.tick);
-  const s = useGame();
+  const tick = useGame((st) => st.tick);
+  const s = useGame(
+    useShallow((st) => ({
+      name: st.name,
+      playerId: st.playerId,
+      identitySubtitle: st.identitySubtitle,
+      district: st.district,
+      density: st.density,
+      life: st.life,
+      lifeMax: st.lifeMax,
+      energy: st.energy,
+      energyMax: st.energyMax,
+      nerve: st.nerve,
+      nerveMax: st.nerveMax,
+      happy: st.happy,
+      happyMax: st.happyMax,
+      clean: st.clean,
+      street: st.street,
+      bank: st.bank,
+      level: st.level,
+      xp: st.xp,
+      hospitalUntil: st.hospitalUntil,
+      jailUntil: st.jailUntil,
+      travelUntil: st.travelUntil,
+      laylowUntil: st.laylowUntil,
+      investigation: st.investigation,
+      investigationDeadline: st.investigationDeadline,
+      activeCourseId: st.activeCourseId,
+      courseProgressHours: st.courseProgressHours,
+      heat: st.heat,
+      stress: st.stress,
+      completedCourses: st.completedCourses,
+      jobId: st.jobId,
+      shiftsThisWeek: st.shiftsThisWeek,
+      ritual: st.ritual,
+      ritualBonus: st.ritualBonus,
+      logs: st.logs,
+      rankIndex: st.rankIndex,
+      rivalLast: st.rivalLast,
+      rivalScore: st.rivalScore,
+      rivalFlags: st.rivalFlags,
+      power: st.power,
+      awayModal: st.awayModal,
+      callRitual: st.callRitual,
+      dismissAway: st.dismissAway,
+      payMedical: st.payMedical,
+      payBail: st.payBail,
+    }))
+  );
   const [omnibox, setOmnibox] = useState("");
   const [showOmni, setShowOmni] = useState(false);
   const [moneyMode, setMoneyMode] = useState<"combined" | "clean" | "street">("combined");
+  const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
     tick();
-    const id = window.setInterval(() => tick(), 1000);
-    return () => clearInterval(id);
+    const tickId = window.setInterval(() => tick(), 1000);
+    const clockId = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => {
+      window.clearInterval(tickId);
+      window.clearInterval(clockId);
+    };
   }, [tick]);
 
   useEffect(() => {
@@ -165,7 +221,6 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
   }, []);
 
   const districtName = DISTRICTS.find((d) => d.id === s.district)?.name ?? s.district;
-  const now = s.clock;
   const clock = new Date(now).toLocaleTimeString();
   const regen = "4:59";
 
@@ -173,6 +228,7 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
   if (s.hospitalUntil && now < s.hospitalUntil) statusPills.push(`Hospital ${formatMmSs((s.hospitalUntil - now) / 1000)}`);
   if (s.jailUntil && now < s.jailUntil) statusPills.push(`Jail ${formatMmSs((s.jailUntil - now) / 1000)}`);
   if (s.travelUntil && now < s.travelUntil) statusPills.push(`Travel ${formatMmSs((s.travelUntil - now) / 1000)}`);
+  if (s.laylowUntil && now < s.laylowUntil) statusPills.push(`Lay-low ${formatMmSs((s.laylowUntil - now) / 1000)}`);
   if (s.investigation >= 3 && s.investigationDeadline) statusPills.push(`CASE ${formatMmSs((s.investigationDeadline - now) / 1000)}`);
   if (s.activeCourseId) {
     const course = COURSES.find((c) => c.id === s.activeCourseId);
@@ -191,10 +247,23 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
     return { label: "Raise mastery or buy territory influence", href: "/power" };
   }, [s.level, s.completedCourses, s.jobId]);
 
+  /** Real actionable nav dots only — unset = no badge */
+  const navBadge: Record<string, boolean> = {
+    "/gym": s.energy >= 5 && !(s.hospitalUntil && now < s.hospitalUntil) && !(s.jailUntil && now < s.jailUntil) && !(s.laylowUntil && now < s.laylowUntil),
+    "/jobs":
+      Boolean(s.jobId) &&
+      s.shiftsThisWeek < 40 &&
+      s.energy >= 5 &&
+      !(s.hospitalUntil && now < s.hospitalUntil) &&
+      !(s.jailUntil && now < s.jailUntil) &&
+      !(s.laylowUntil && now < s.laylowUntil),
+  };
+
   const takeover =
     (s.hospitalUntil && now < s.hospitalUntil && pathname !== "/hospital") ||
     (s.jailUntil && now < s.jailUntil && pathname !== "/jail") ||
-    (s.travelUntil && now < s.travelUntil && pathname !== "/travel");
+    (s.travelUntil && now < s.travelUntil && pathname !== "/travel") ||
+    (s.laylowUntil && now < s.laylowUntil && pathname !== "/travel" && pathname !== "/profile");
 
   const omniTargets = NAV.flatMap((n) => n.links).filter((l) => !l.locked);
 
@@ -224,10 +293,10 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
           </span>
         </div>
         <div className={styles.rowB}>
-          <ResourceBar label="Life" cur={s.life} max={s.lifeMax} color="var(--life)" nextIn={regen} />
-          <ResourceBar label="Energy" cur={s.energy} max={s.energyMax} color="var(--energy)" nextIn={regen} />
-          <ResourceBar label="Nerve" cur={s.nerve} max={s.nerveMax} color="var(--nerve)" nextIn={regen} />
-          <ResourceBar label="Happy" cur={s.happy} max={s.happyMax} color="var(--happy)" nextIn="—" />
+          <ResourceBar label="Life" cur={s.life} max={s.lifeMax} color="var(--life)" deep="var(--life-deep)" nextIn={regen} />
+          <ResourceBar label="Energy" cur={s.energy} max={s.energyMax} color="var(--energy)" deep="var(--energy-deep)" nextIn={regen} />
+          <ResourceBar label="Nerve" cur={s.nerve} max={s.nerveMax} color="var(--nerve)" deep="var(--nerve-deep)" nextIn={regen} />
+          <ResourceBar label="Happy" cur={s.happy} max={s.happyMax} color="var(--happy)" deep="var(--happy-deep)" nextIn="—" />
         </div>
         <div className={styles.rowC}>
           <button type="button" className={styles.moneyToggle} onClick={() => setMoneyMode((m) => (m === "combined" ? "clean" : m === "clean" ? "street" : "combined"))}>
@@ -259,11 +328,29 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
             <div className={styles.ritual}>
               <span>{s.ritual.text}</span>
               <span className="tabular">
-                {s.ritual.current}/{s.ritual.target}
+                {s.ritual.kind === "study"
+                  ? `${s.ritual.current.toFixed(1)}/${s.ritual.target}`
+                  : `${Math.floor(s.ritual.current)}/${s.ritual.target}`}
               </span>
-              <GameButton variant="ghost" onClick={() => useGame.getState().callRitual()}>
-                Call it
+              <GameButton
+                variant="ghost"
+                disabled={s.ritual.rewardClaimed}
+                onClick={() => s.callRitual()}
+                title={
+                  s.ritual.current >= s.ritual.target
+                    ? "Claim completion bonus (+cash, +5% on next 3 matching)"
+                    : "Call it early — +15 happy, no cash bonus"
+                }
+              >
+                {s.ritual.rewardClaimed ? "Called" : "Call it"}
               </GameButton>
+            </div>
+          )}
+          {s.ritualBonus && s.ritualBonus.remaining > 0 && (
+            <div className={styles.ritual}>
+              <span>
+                Ritual edge: +5% {s.ritualBonus.kind} cash ×{s.ritualBonus.remaining}
+              </span>
             </div>
           )}
         </div>
@@ -277,6 +364,7 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
               <div className={styles.navHead}>{group.section}</div>
               {group.links.map((link) => {
                 const active = pathname === link.href;
+                const badge = !link.locked && navBadge[link.href];
                 return (
                   <Link
                     key={link.href + link.label}
@@ -288,10 +376,11 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
                     }}
                   >
                     <NavIcon href={link.href} />
-                    <span>
+                    <span className={styles.navLabel}>
                       {link.label}
                       {link.locked ? " [locked]" : ""}
                     </span>
+                    {badge ? <span className={styles.navBadge} aria-label="Action ready" /> : <span className={styles.navBadgeSlot} />}
                   </Link>
                 );
               })}
@@ -306,21 +395,37 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
                 {s.hospitalUntil && now < s.hospitalUntil && "HOSPITALIZED"}
                 {s.jailUntil && now < s.jailUntil && "JAILED"}
                 {s.travelUntil && now < s.travelUntil && "TRAVELING"}
+                {s.laylowUntil && now < s.laylowUntil && !(s.hospitalUntil && now < s.hospitalUntil) && !(s.jailUntil && now < s.jailUntil) && !(s.travelUntil && now < s.travelUntil) && "LAYING LOW"}
               </h1>
               <p className={`tabular ${styles.takeoverTimer}`}>
                 {s.hospitalUntil && now < s.hospitalUntil && formatMmSs((s.hospitalUntil - now) / 1000)}
                 {s.jailUntil && now < s.jailUntil && formatMmSs((s.jailUntil - now) / 1000)}
                 {s.travelUntil && now < s.travelUntil && formatMmSs((s.travelUntil - now) / 1000)}
+                {s.laylowUntil && now < s.laylowUntil && !(s.hospitalUntil && now < s.hospitalUntil) && !(s.jailUntil && now < s.jailUntil) && !(s.travelUntil && now < s.travelUntil) && formatMmSs((s.laylowUntil - now) / 1000)}
               </p>
-              <p>Actions are blocked until this status ends.</p>
+              <p>
+                {s.laylowUntil && now < s.laylowUntil && !(s.hospitalUntil && now < s.hospitalUntil)
+                  ? "Street actions blocked. Travel to another district to shed investigation, or wait it out."
+                  : "Actions are blocked until this status ends."}
+              </p>
               <div className={styles.takeoverActions}>
                 {s.hospitalUntil && now < s.hospitalUntil && (
-                  <GameButton onClick={() => useGame.getState().payMedical()}>Pay medical ($200)</GameButton>
+                  <GameButton onClick={() => s.payMedical()}>Pay medical</GameButton>
                 )}
                 {s.jailUntil && now < s.jailUntil && (
-                  <GameButton onClick={() => useGame.getState().payBail()}>Pay bail ($500)</GameButton>
+                  <GameButton onClick={() => s.payBail()}>Pay bail</GameButton>
                 )}
-                <Link href={s.hospitalUntil ? "/hospital" : s.jailUntil ? "/jail" : "/travel"}>Open status page</Link>
+                <Link
+                  href={
+                    s.hospitalUntil && now < s.hospitalUntil
+                      ? "/hospital"
+                      : s.jailUntil && now < s.jailUntil
+                        ? "/jail"
+                        : "/travel"
+                  }
+                >
+                  Open status page
+                </Link>
               </div>
             </div>
           ) : (
@@ -347,8 +452,24 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
               <div className={styles.railTitle}>Daily ritual</div>
               <div>{s.ritual.text}</div>
               <div className={styles.progress}>
-                <div style={{ width: `${(s.ritual.current / s.ritual.target) * 100}%` }} />
+                <div
+                  style={{
+                    width: `${Math.min(100, (s.ritual.current / s.ritual.target) * 100)}%`,
+                  }}
+                />
               </div>
+              <div className={styles.dim} style={{ marginTop: 4 }}>
+                {s.ritual.rewardClaimed
+                  ? "Called for the night"
+                  : s.ritual.current >= s.ritual.target
+                    ? "Ready — Call it for +cash and +5% matching payouts"
+                    : "Call it early for happy (no cash bonus)"}
+              </div>
+              {s.ritualBonus && s.ritualBonus.remaining > 0 && (
+                <div className={styles.dim} style={{ marginTop: 4 }}>
+                  Active: +5% {s.ritualBonus.kind} ×{s.ritualBonus.remaining}
+                </div>
+              )}
             </div>
           )}
           <div className={styles.railBox}>
@@ -398,7 +519,7 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
             <ul>{s.awayModal.city.length ? s.awayModal.city.map((x) => <li key={x}>{x}</li>) : <li>Quiet</li>}</ul>
             <h3>Progress</h3>
             <ul>{s.awayModal.progress.length ? s.awayModal.progress.map((x) => <li key={x}>{x}</li>) : <li>None</li>}</ul>
-            <GameButton onClick={() => useGame.getState().dismissAway()}>Continue</GameButton>
+            <GameButton onClick={() => s.dismissAway()}>Continue</GameButton>
           </div>
         </div>
       )}

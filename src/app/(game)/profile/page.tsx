@@ -1,7 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { RANK_TITLES } from "@/content/catalog";
-import { formatMoney } from "@/game/formulas";
+import { formatMmSs, formatMoney } from "@/game/formulas";
+import { masteryStars, masteryTitleFor } from "@/game/mastery";
+import { politicalCounterplayDiscount } from "@/game/power";
 import { Module } from "@/components/ui/Module";
 import { GameButton } from "@/components/ui/GameButton";
 import { PageHero } from "@/components/ui/Visuals";
@@ -10,7 +13,10 @@ import styles from "../tables.module.css";
 
 export default function ProfilePage() {
   const s = useGame();
-  const masteryEntries = Object.entries(s.mastery);
+  const masteryEntries = Object.entries(s.mastery).sort((a, b) => b[1].level - a[1].level);
+  const now = Date.now();
+  const layingLow = Boolean(s.laylowUntil && now < s.laylowUntil);
+  const lawyerCost = Math.round(2000 * (1 - politicalCounterplayDiscount(s.power.politicalRung)));
 
   return (
     <div>
@@ -40,15 +46,25 @@ export default function ProfilePage() {
               Heat {s.heat.toFixed(0)} · Stress {s.stress.toFixed(0)} · Happy {s.happy.toFixed(0)} · Inv{" "}
               {s.investigation}
             </div>
+            {layingLow && (
+              <div style={{ color: "var(--text-warn)", marginTop: 6 }}>
+                Laying low — {formatMmSs(((s.laylowUntil as number) - now) / 1000)} left
+              </div>
+            )}
             <div style={{ marginTop: 8 }}>
               <div style={{ color: "var(--text-dim)", fontSize: 10, textTransform: "uppercase" }}>Mastery</div>
               {masteryEntries.length ? (
                 <ul style={{ margin: "4px 0 0", paddingLeft: 16 }}>
-                  {masteryEntries.map(([k, v]) => (
-                    <li key={k}>
-                      {k}: {"★".repeat(v.level) || "0"}
-                    </li>
-                  ))}
+                  {masteryEntries.map(([k, v]) => {
+                    const title = masteryTitleFor(k, v.level);
+                    return (
+                      <li key={k}>
+                        {k} {masteryStars(v.level)}
+                        {title ? ` · ${title}` : ""}
+                        {v.level >= 5 ? " (+3% odds)" : ""}
+                      </li>
+                    );
+                  })}
                 </ul>
               ) : (
                 <div style={{ color: "var(--text-dim)" }}>None yet — commit crimes to build it.</div>
@@ -57,10 +73,28 @@ export default function ProfilePage() {
           </div>
         </div>
         <h3>Investigation counterplay</h3>
-        <GameButton onClick={() => s.investigationCounterplay("lawyer")}>Lawyer ($2000)</GameButton>{" "}
-        <GameButton onClick={() => s.investigationCounterplay("burn")}>Burn evidence</GameButton>{" "}
-        <GameButton onClick={() => s.investigationCounterplay("laylow")}>Lay low</GameButton>{" "}
-        <GameButton onClick={() => s.investigationCounterplay("bribe")}>Risky bribe</GameButton>
+        <p style={{ color: "var(--text-dim)", fontSize: 12 }}>
+          Stage {s.investigation}/4. Leave district: arrive elsewhere to shed one stage. Lay low: 4h timer, then −1.
+        </p>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+          <GameButton disabled={s.investigation <= 0} onClick={() => s.investigationCounterplay("lawyer")}>
+            Lawyer ({formatMoney(lawyerCost)})
+          </GameButton>
+          <GameButton disabled={s.investigation <= 0} onClick={() => s.investigationCounterplay("burn")}>
+            Burn evidence
+          </GameButton>
+          <GameButton disabled={s.investigation <= 0 || layingLow} onClick={() => s.investigationCounterplay("laylow")}>
+            Lay low (4h)
+          </GameButton>
+          <GameButton disabled={s.investigation <= 0} onClick={() => s.investigationCounterplay("bribe")}>
+            Risky bribe
+          </GameButton>
+          <Link href="/travel">
+            <GameButton disabled={s.investigation <= 0} variant="ghost" onClick={() => s.investigationCounterplay("leave")}>
+              Leave district → Travel
+            </GameButton>
+          </Link>
+        </div>
       </Module>
     </div>
   );

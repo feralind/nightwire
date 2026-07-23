@@ -26,7 +26,7 @@ export function promoteXpNeeded(next: JobDef): number {
   return next.promoteXp ?? DEFAULT_PROMOTE_XP;
 }
 
-/** Reasons why a rank-1 job cannot be applied to right now. Rank 2 is never applied — promote only. */
+/** Reasons why a rank-1 job cannot be applied to right now. Higher ranks promote only. */
 export function jobApplyReasons(
   job: JobDef,
   s: { level: number; completedCourses: string[]; jobId: string | null }

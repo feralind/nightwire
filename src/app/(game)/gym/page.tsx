@@ -56,7 +56,11 @@ const TRACKS = [
 export default function GymPage() {
   const train = useGame((s) => s.train);
   const energy = useGame((s) => s.energy);
-  const stats = useGame((s) => ({ str: s.str, def: s.def, spd: s.spd, dex: s.dex }));
+  const str = useGame((s) => s.str);
+  const def = useGame((s) => s.def);
+  const spd = useGame((s) => s.spd);
+  const dex = useGame((s) => s.dex);
+  const stats = { str, def, spd, dex };
 
   return (
     <div className={styles.wrap}>

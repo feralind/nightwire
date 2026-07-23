@@ -97,6 +97,22 @@
   gap: 6px;
 }
 
+.oddsToggle {
+  background: var(--bg-inset);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  font-size: 10px;
+  text-align: left;
+  padding: 4px 6px;
+  cursor: pointer;
+  border-radius: var(--r1);
+}
+
+.oddsToggle:hover {
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+
 @media (max-width: 1100px) {
   .grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));

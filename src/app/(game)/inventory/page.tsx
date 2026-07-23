@@ -1,14 +1,18 @@
 "use client";
 
 import { getItem } from "@/content/catalog";
-import { Module } from "@/components/ui/Module";
+import { CollapsiblePanel } from "@/components/ui/CollapsiblePanel";
 import { GameButton } from "@/components/ui/GameButton";
+import { InfoRow, InfoRowBlock } from "@/components/ui/InfoRow";
 import { PageHero } from "@/components/ui/Visuals";
 import { useGame } from "@/store/gameStore";
 import hub from "../hub.module.css";
+import styles from "./inventory.module.css";
 
 export default function InventoryPage() {
   const s = useGame();
+  const equipped = s.inventory.filter((i) => i.equipped);
+  const packs = s.inventory;
 
   return (
     <div className={hub.wrap}>
@@ -17,52 +21,66 @@ export default function InventoryPage() {
         subtitle="Tools, weapons, consumables — equip before the attempt."
         tone="default"
         image="/art/city/skyline.webp"
-      >
-        <div className={hub.chipRow}>
-          <span className={hub.chip}>{s.inventory.length} stacks</span>
-          <span className={hub.chip}>
-            Equipped {s.inventory.filter((i) => i.equipped).length}
-          </span>
-        </div>
-      </PageHero>
+      />
 
-      <Module title="Kit" footer="Equip changes crime tool mods and attack loadout">
-        {s.inventory.length === 0 ? (
-          <p className={hub.sub}>Empty pockets. Hit Shops or fence a score.</p>
+      <CollapsiblePanel
+        title={`Kit · ${packs.length} stacks`}
+        footer="Equip changes crime tool mods and attack loadout"
+      >
+        {packs.length === 0 ? (
+          <p className={hub.sub} style={{ padding: "8px 0" }}>
+            Empty pockets. Hit Shops or fence a score.
+          </p>
         ) : (
-          <div className={hub.grid}>
-            {s.inventory.map((i) => {
+          <>
+            <div className={styles.kitGrid} aria-label="Equipped kit">
+              {packs.map((i) => {
+                const item = getItem(i.itemId);
+                const letter = (item?.name ?? i.itemId).slice(0, 1).toUpperCase();
+                return (
+                  <button
+                    key={i.itemId}
+                    type="button"
+                    className={[styles.kitCell, i.equipped ? styles.kitOn : ""].filter(Boolean).join(" ")}
+                    title={`${item?.name ?? i.itemId} ×${i.qty}`}
+                    onClick={() => s.equipItem(i.itemId)}
+                  >
+                    <span className={styles.kitGlyph}>{letter}</span>
+                    <span className={`tabular ${styles.kitQty}`}>×{i.qty}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <InfoRowBlock>
+              <InfoRow label="Equipped" value={equipped.length ? equipped.map((e) => getItem(e.itemId)?.name ?? e.itemId).join(", ") : "—"} />
+            </InfoRowBlock>
+            {packs.map((i) => {
               const item = getItem(i.itemId);
               return (
-                <article key={i.itemId} className={hub.panel}>
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
-                    <strong>
-                      {item?.name ?? i.itemId}
-                      {i.equipped ? " · equipped" : ""}
-                    </strong>
-                    <span className="tabular">×{i.qty}</span>
-                  </div>
-                  <p className={hub.sub} style={{ marginTop: 6 }}>
-                    {item?.description}
-                  </p>
-                  <div className={hub.statRow}>
-                    <span>Kind</span>
-                    <strong>{item?.kind ?? "—"}</strong>
-                  </div>
-                  <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
+                <div key={`detail-${i.itemId}`} className={styles.itemBlock}>
+                  <InfoRowBlock>
+                    <InfoRow
+                      label={item?.name ?? i.itemId}
+                      value={`×${i.qty}${i.equipped ? " · on" : ""}`}
+                    />
+                    <InfoRow label="Kind" value={item?.kind ?? "—"} />
+                    {item?.toolMod != null && <InfoRow label="Tool mod" value={`+${item.toolMod}`} tone="pos" />}
+                    <InfoRow label="Notes" value={item?.description ?? "—"} />
+                  </InfoRowBlock>
+                  <div className={styles.itemActions}>
                     <GameButton variant="ghost" onClick={() => s.equipItem(i.itemId)}>
-                      Equip
+                      {i.equipped ? "Unequip" : "Equip"}
                     </GameButton>
                     <GameButton variant="ghost" onClick={() => s.useItem(i.itemId)}>
                       Use
                     </GameButton>
                   </div>
-                </article>
+                </div>
               );
             })}
-          </div>
+          </>
         )}
-      </Module>
+      </CollapsiblePanel>
     </div>
   );
 }

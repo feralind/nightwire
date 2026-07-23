@@ -67,6 +67,18 @@
   margin-bottom: var(--s3);
 }
 
+.ritual {
+  margin-bottom: var(--s3);
+}
+
+.ritualHead {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+  margin-bottom: var(--s1);
+}
+
 .actions {
   display: flex;
   gap: var(--s2);

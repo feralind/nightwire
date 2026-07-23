@@ -70,7 +70,7 @@ describe("formulas", () => {
 
 describe("npc catalog", () => {
   it("scopes targets by district", () => {
-    expect(NPCS.length).toBe(9);
+    expect(NPCS.length).toBe(15);
     expect(npcsInDistrict("glassrow").every((n) => n.district === "glassrow")).toBe(true);
     expect(getNpc("dr_smuggler")?.name).toBe("Pier Smuggler");
   });

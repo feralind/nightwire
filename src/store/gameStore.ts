@@ -47,14 +47,44 @@ import {
   nextRankJob,
 } from "@/game/careers";
 import { evaluateAwards } from "@/game/awards";
+import { refreshBazaarState, sellPrice } from "@/game/bazaar";
 import { applyContactAction, contactTipOddsBonus } from "@/game/contacts";
 import { canDoGig, computeGigPay } from "@/game/gigs";
+import { masteryOddsBonus, masteryTitleFor } from "@/game/mastery";
+import {
+  canBuyBusiness,
+  canBuyPolitical,
+  laundryFeeRate,
+  nextBusinessTier,
+  nextPoliticalRung,
+  ownedPolitical,
+  politicalBailMult,
+  politicalCounterplayDiscount,
+  politicalHeatCritRelief,
+  respectFlexPay,
+  respectLootMult,
+  respectStreetOddsBonus,
+  respectTitle,
+  RESPECT_FLEX,
+  territoryInvestCost,
+  territoryOddsBonus,
+} from "@/game/power";
 import { canBuyProperty } from "@/game/properties";
+import { applyCallRitual, applyRitualCashBonus, ensureDailyRitual } from "@/game/ritual";
 import { maybeApplyRivalEvents } from "@/game/rival";
 import { pickWeighted, rollD10000, unit01 } from "@/game/rng";
+import { planStreetShopBuy } from "@/game/shops";
 import { createInitialState, normalizeState, type AwayModalState, type GameState, type ResultModalState } from "@/game/state";
 import { applyCatchUp } from "@/game/tick";
 import type { AwardDef, ContactActionId, DistrictId } from "@/game/types";
+
+function actionBlocked(s: GameState, now = Date.now()): boolean {
+  if (s.hospitalUntil && now < s.hospitalUntil) return true;
+  if (s.jailUntil && now < s.jailUntil) return true;
+  if (s.travelUntil && now < s.travelUntil) return true;
+  if (s.laylowUntil && now < s.laylowUntil) return true;
+  return false;
+}
 
 type UIState = {
   resultModal: ResultModalState;
@@ -90,16 +120,16 @@ type Actions = {
   equipItem: (itemId: string) => void;
   buyProperty: (propertyId: string) => void;
   interactContact: (contactId: string, actionId: ContactActionId) => void;
-  investigationCounterplay: (kind: "lawyer" | "burn" | "laylow" | "bribe") => void;
+  investigationCounterplay: (kind: "lawyer" | "burn" | "laylow" | "bribe" | "leave") => void;
   refreshBazaar: () => void;
-  bazaarBuy: (itemId: string) => void;
+  bazaarBuy: (listingIndex: number) => void;
   bazaarSell: (itemId: string) => void;
   generateRitual: () => void;
   advanceRitual: (kind: string) => void;
   callRitual: () => void;
   investTerritory: (district: DistrictId) => void;
   buyPoliticalRung: () => void;
-  buyRespectFlex: (cost: number, respect: number, useStreet?: boolean) => void;
+  buyRespectFlex: (flexId: string, useStreet?: boolean) => void;
   buyBusinessTier: () => void;
   exportSave: () => string;
   importSave: (json: string) => void;
@@ -221,15 +251,26 @@ function updateIdentity(s: GameState): GameState {
   const rank = RANK_TITLES[s.rankIndex] ?? "Nobody";
   const job = s.jobId ? getJob(s.jobId)?.title ?? "Unemployed" : "Unemployed";
   const edu = s.completedCourses.length ? "Student" : "Street";
-  let masteryTitle = "";
   const best = Object.entries(s.mastery).sort((a, b) => b[1].level - a[1].level)[0];
-  if (best && best[1].level >= 3) {
-    if (best[0] === "petty") masteryTitle = best[1].level >= 5 ? "Ghost Hand" : "Slick";
-    if (best[0] === "street") masteryTitle = best[1].level >= 5 ? "Alley King" : "Street Smart";
-    if (best[0] === "heavy") masteryTitle = best[1].level >= 5 ? "Mastermind" : "Pro";
-  }
-  const subtitle = [masteryTitle || edu, job, rank].filter(Boolean).join(" · ");
+  const masteryTitle = best ? masteryTitleFor(best[0], best[1].level) ?? "" : "";
+  const streetCred = respectTitle(s.power.respect);
+  const civic = ownedPolitical(s.power.politicalRung)?.title;
+  const lead = streetCred || civic || masteryTitle || edu;
+  const subtitle = [lead, job, rank].filter(Boolean).join(" · ");
   return { ...s, identitySubtitle: subtitle };
+}
+
+/** Advance daily ritual progress when the action kind matches */
+function bumpRitual(s: GameState, kind: string, amount = 1): GameState {
+  if (!s.ritual || s.ritual.rewardClaimed) return s;
+  if (s.ritual.kind !== kind) return s;
+  return {
+    ...s,
+    ritual: {
+      ...s.ritual,
+      current: Math.min(s.ritual.target, s.ritual.current + amount),
+    },
+  };
 }
 
 function bumpMastery(s: GameState, family: string, cash: number, success: boolean): GameState {
@@ -252,25 +293,11 @@ function maybeRival(s: GameState): GameState {
 }
 
 function ensureBazaar(s: GameState): GameState {
-  const day = Math.floor(Date.now() / 86400000);
-  if (s.bazaar.day === day && s.bazaar.listings.length) return s;
-  const pool = ITEMS.slice(0, 15);
-  const listings = pool.map((item) => ({
-    itemId: item.id,
-    price: Math.round(item.baseValue * (0.8 + unit01(s.seed, "bazaar", day + item.id.length) * 2.2)),
-  }));
-  return { ...s, bazaar: { day, listings } };
+  return refreshBazaarState(s);
 }
 
 function ensureRitual(s: GameState): GameState {
-  if (s.ritual) return s;
-  const options = [
-    { text: "Tonight’s move: 5 petty crimes", target: 5, kind: "petty" },
-    { text: "Cash out: 3 job shifts", target: 3, kind: "job" },
-    { text: "Study grind: put 2h into a course", target: 2, kind: "study" },
-  ];
-  const pick = options[rollD10000(s.seed, "ritual", s.actionIndex) % options.length];
-  return { ...s, ritual: { ...pick, current: 0, rewardClaimed: false } };
+  return ensureDailyRitual(s);
 }
 
 export const useGame = create<GameState & UIState & Actions>()(
@@ -301,48 +328,87 @@ export const useGame = create<GameState & UIState & Actions>()(
       },
 
       tick: () => {
-        const cur = normalizeState(get());
-        if (!cur.created) {
-          set({ clock: Date.now() });
-          return;
-        }
-        const { state, awaySummary } = applyCatchUp(cur, Date.now());
-        let s = ensureBazaar(ensureRitual(state));
-        // director event occasionally
-        if (!s.directorEvent && unit01(s.seed, "director", Math.floor(Date.now() / 600000)) < 0.02) {
+        const prev = normalizeState(get());
+        const now = Date.now();
+        if (!prev.created) return;
+
+        const { state, awaySummary } = applyCatchUp(prev, now);
+        // Ritual first; bazaar after director so mid-day events can reprice
+        let s = ensureRitual(state);
+        const directorBeforeId = s.directorEvent?.id ?? null;
+        if (!s.directorEvent && unit01(s.seed, "director", Math.floor(now / 600000)) < 0.02) {
           const events = [
             { id: "outage", label: "Power outage in Glassrow" },
             { id: "strike", label: "Harbor strike in DocksReach" },
             { id: "festival", label: "Festival crowds in Glassrow" },
             { id: "sweep", label: "Police sweep" },
           ];
-          const ev = events[Math.floor(Date.now() / 600000) % events.length];
+          const ev = events[Math.floor(now / 600000) % events.length];
           s = {
             ...pushLog(s, `Director: ${ev.label}`, "system"),
-            directorEvent: { ...ev, until: Date.now() + 30 * 60 * 1000 },
+            directorEvent: { ...ev, until: now + 30 * 60 * 1000 },
           };
         }
-        if (s.directorEvent && Date.now() > s.directorEvent.until) {
+        if (s.directorEvent && now > s.directorEvent.until) {
           s = { ...s, directorEvent: null };
         }
+        const directorChanged = directorBeforeId !== (s.directorEvent?.id ?? null);
+        s = refreshBazaarState(s, directorChanged);
         const awardPass = applyAwardPass(s);
         s = awardPass.state;
-        set({
-          ...s,
-          clock: Date.now(),
-          awardModal: awardPass.unlocked.length
-            ? awardModalPayload(awardPass.unlocked)
-            : get().awardModal,
-          awayModal: awaySummary
-            ? {
-                hours: awaySummary.hours,
-                legal: awaySummary.legal,
-                street: awaySummary.street,
-                city: awaySummary.city,
-                progress: awaySummary.progress,
-              }
-            : get().awayModal,
-        });
+
+        const dailyMutated =
+          s.ritualDay !== prev.ritualDay ||
+          s.bazaar.day !== prev.bazaar.day ||
+          JSON.stringify(s.ritual) !== JSON.stringify(prev.ritual) ||
+          JSON.stringify(s.ritualBonus) !== JSON.stringify(prev.ritualBonus) ||
+          JSON.stringify(s.bazaar.listings) !== JSON.stringify(prev.bazaar.listings);
+
+        const meaningful =
+          Boolean(awaySummary) ||
+          awardPass.unlocked.length > 0 ||
+          s.energy !== prev.energy ||
+          s.nerve !== prev.nerve ||
+          s.life !== prev.life ||
+          s.happy !== prev.happy ||
+          Math.floor(s.heat) !== Math.floor(prev.heat) ||
+          s.bank !== prev.bank ||
+          s.clean !== prev.clean ||
+          s.street !== prev.street ||
+          s.hospitalUntil !== prev.hospitalUntil ||
+          s.jailUntil !== prev.jailUntil ||
+          s.travelUntil !== prev.travelUntil ||
+          s.laylowUntil !== prev.laylowUntil ||
+          s.investigation !== prev.investigation ||
+          s.courseProgressHours !== prev.courseProgressHours ||
+          s.activeCourseId !== prev.activeCourseId ||
+          s.district !== prev.district ||
+          s.directorEvent?.id !== prev.directorEvent?.id ||
+          s.wounds.arm !== prev.wounds.arm ||
+          s.wounds.leg !== prev.wounds.leg ||
+          dailyMutated;
+
+        if (meaningful) {
+          set({
+            ...s,
+            clock: now,
+            awardModal: awardPass.unlocked.length
+              ? awardModalPayload(awardPass.unlocked)
+              : get().awardModal,
+            awayModal: awaySummary
+              ? {
+                  hours: awaySummary.hours,
+                  legal: awaySummary.legal,
+                  street: awaySummary.street,
+                  city: awaySummary.city,
+                  progress: awaySummary.progress,
+                }
+              : get().awayModal,
+          });
+        } else {
+          // Quiet tick — only advance lastTickAt so catch-up stays accurate
+          set({ lastTickAt: s.lastTickAt });
+        }
       },
 
       dismissResult: () => set({ resultModal: null }),
@@ -371,7 +437,7 @@ export const useGame = create<GameState & UIState & Actions>()(
         const districtMod = district?.crimeBias[crime.tier] ?? 0;
         const eduMod = educationOddsMod(s.completedCourses, crime.family);
         const jobMod = jobSpecialtyOddsMod(s.jobId, crime.id);
-        const masteryBonus = (s.mastery[crime.family]?.level ?? 0) >= 5 ? 3 : 0;
+        const masteryBonus = 0; // odds edge applied below as % — not skill points
         const chainMod =
           s.chainFamily === crime.family ? Math.min(10, s.chainLevel * 0.5) : 0;
         const heatPenalty = s.heat * 0.15;
@@ -393,11 +459,21 @@ export const useGame = create<GameState & UIState & Actions>()(
           difficulty: crime.difficulty,
         });
         const territory = s.power.territory[s.district] ?? 0;
-        const terrOdds = territory >= 100 ? 0.2 : 0;
+        const terrOdds = territoryOddsBonus(territory);
         const tipOdds = tipBonus * 0.01;
-        const finalOdds = clamp(odds + terrOdds + tipOdds, 0.05, 0.9);
-        const tipMods =
-          tipBonus > 0 ? [...modifiers, { label: "Contact tip", value: tipBonus }] : modifiers;
+        const mastOdds = masteryOddsBonus(s.mastery[crime.family]?.level ?? 0);
+        const respOdds =
+          crime.family === "street" ? respectStreetOddsBonus(s.power.respect) : 0;
+        const finalOdds = clamp(odds + terrOdds + tipOdds + mastOdds + respOdds, 0.05, 0.9);
+        const tipMods = [
+          ...modifiers,
+          ...(terrOdds > 0
+            ? [{ label: `Territory ${Math.floor(territory)}%`, value: terrOdds * 100 }]
+            : []),
+          ...(tipBonus > 0 ? [{ label: "Contact tip", value: tipBonus }] : []),
+          ...(mastOdds > 0 ? [{ label: "Mastery 5", value: mastOdds * 100 }] : []),
+          ...(respOdds > 0 ? [{ label: "Street respect", value: respOdds * 100 }] : []),
+        ];
         return {
           locked: reasons.length > 0,
           reasons,
@@ -411,9 +487,7 @@ export const useGame = create<GameState & UIState & Actions>()(
         const cur = get();
         let s: GameState = { ...cur };
         if (!s.created) return;
-        if (s.hospitalUntil && Date.now() < s.hospitalUntil) return;
-        if (s.jailUntil && Date.now() < s.jailUntil) return;
-        if (s.travelUntil && Date.now() < s.travelUntil) return;
+        if (actionBlocked(s)) return;
         const crime = getCrime(crimeId);
         if (!crime) return;
         const view = get().getCrimeOddsView(crimeId);
@@ -427,10 +501,15 @@ export const useGame = create<GameState & UIState & Actions>()(
         };
         // heat while enrolled
         const heatMult = s.activeCourseId ? 1.25 : 1;
-        const r = rollD10000(s.seed, `crime:${crimeId}`, s.actionIndex);
+        const actionKey = `crime:${crimeId}`;
+        const r = rollD10000(s.seed, actionKey, s.actionIndex);
         const successThreshold = Math.floor(view.odds * 10000);
         const failMass = 10000 - successThreshold;
-        const critFailExtra = Math.floor(failMass * heatCritFailBonus(s.heat));
+        const heatCrit = Math.max(
+          0,
+          heatCritFailBonus(s.heat) - politicalHeatCritRelief(s.power.politicalRung)
+        );
+        const critFailExtra = Math.floor(failMass * heatCrit);
 
         let title: NonNullable<ResultModalState>["title"] = "FAILED";
         let cash = 0;
@@ -474,6 +553,13 @@ export const useGame = create<GameState & UIState & Actions>()(
         }
 
         if (title === "SUCCESS" || title === "MIXED") {
+          if (cash > 0) {
+            const before = cash;
+            const boosted = applyRitualCashBonus(s, crime.family, cash);
+            s = boosted.state;
+            cash = boosted.cash;
+            if (cash !== before) lines.push(`Ritual bonus → ${formatMoney(cash)}`);
+          }
           s.street += cash;
           s = addXp(s, crime.xp + (title === "SUCCESS" ? 0 : -Math.floor(crime.xp / 2)));
           s.heat = Math.min(120, s.heat + crime.heat * heatMult * (1 + s.chainLevel * 0.2));
@@ -485,12 +571,7 @@ export const useGame = create<GameState & UIState & Actions>()(
             s.lifetime = { ...s.lifetime, crimesSucceeded: s.lifetime.crimesSucceeded + 1 };
           }
           s = bumpMastery(s, crime.family, cash, title === "SUCCESS");
-          if (s.ritual?.kind === crime.family || s.ritual?.kind === "petty") {
-            s = {
-              ...s,
-              ritual: s.ritual ? { ...s.ritual, current: Math.min(s.ritual.target, s.ritual.current + 1) } : s.ritual,
-            };
-          }
+          s = bumpRitual(s, crime.family);
         } else {
           s.heat = Math.min(120, s.heat + crime.heat * heatMult);
           s.stress = Math.min(100, s.stress + 10);
@@ -543,6 +624,15 @@ export const useGame = create<GameState & UIState & Actions>()(
             lines,
             cashDelta: cash,
             repeatable: { type: "crime", id: crimeId },
+            ritual: {
+              seed: s.seed,
+              actionKey,
+              actionIndex: s.actionIndex,
+              roll: r,
+              odds: view.odds,
+              ev: view.ev,
+              modifiers: view.modifiers,
+            },
           },
         });
       },
@@ -602,7 +692,7 @@ export const useGame = create<GameState & UIState & Actions>()(
         let s: GameState = { ...get() };
         s = rolloverWeek(s);
         if (!s.jobId) return;
-        if (s.hospitalUntil || s.jailUntil || s.travelUntil) return;
+        if (actionBlocked(s)) return;
         const job = getJob(s.jobId);
         if (!job) return;
         if (s.energy < job.energy) return;
@@ -618,8 +708,14 @@ export const useGame = create<GameState & UIState & Actions>()(
         const happyPen = 1 - happyJobQualityPenalty(s.happy);
         const districtBonus = job.districtBias.includes(s.district) ? 1.1 : 1;
         const courseBonus = 1 + s.completedCourses.reduce((a, id) => a + ((getCourse(id)?.jobPayBonus ?? 0) / 100), 0);
-        const pay = Math.round(job.basePay * mult * districtBonus * courseBonus * happyPen);
+        let pay = Math.round(job.basePay * mult * districtBonus * courseBonus * happyPen);
         const xpGain = Math.round(10 * mult);
+
+        {
+          const boosted = applyRitualCashBonus(s, "job", pay);
+          s = boosted.state;
+          pay = boosted.cash;
+        }
 
         s = {
           ...s,
@@ -671,9 +767,7 @@ export const useGame = create<GameState & UIState & Actions>()(
           shiftLog: [{ quality, pay, special: specialLine, at: Date.now() }, ...(s.shiftLog ?? [])].slice(0, 8),
         };
 
-        if (s.ritual?.kind === "job") {
-          s.ritual = { ...s.ritual, current: Math.min(s.ritual.target, s.ritual.current + 1) };
-        }
+        s = bumpRitual(s, "job");
 
         s = bumpMastery(s, `career:${job.career}`, pay, true);
         s = pushLog(s, `Shift ${quality}: +${formatMoney(pay)}`, "result");
@@ -695,6 +789,7 @@ export const useGame = create<GameState & UIState & Actions>()(
         s = rolloverWeek(s);
         const gig = getGig(gigId);
         if (!gig) return;
+        if (actionBlocked(s)) return;
         if (!canDoGig(gig, s)) return;
 
         const quality = pickWeighted(s.seed, "gig", s.actionIndex + 1, {
@@ -709,6 +804,12 @@ export const useGame = create<GameState & UIState & Actions>()(
           completedCourses: s.completedCourses,
           happy: s.happy,
         });
+
+        {
+          const boosted = applyRitualCashBonus(s, "gig", pay);
+          s = boosted.state;
+          pay = boosted.cash;
+        }
 
         s = {
           ...s,
@@ -745,9 +846,7 @@ export const useGame = create<GameState & UIState & Actions>()(
           ].slice(0, 8),
         };
 
-        if (s.ritual?.kind === "job" || s.ritual?.kind === "gig") {
-          s.ritual = { ...s.ritual, current: Math.min(s.ritual.target, s.ritual.current + 1) };
-        }
+        s = bumpRitual(s, "gig");
 
         s = pushLog(s, `Gig ${quality}: ${gig.name} +${formatMoney(pay)}`, "result");
         s = updateIdentity(s);
@@ -771,7 +870,7 @@ export const useGame = create<GameState & UIState & Actions>()(
       train: (track) => {
         let s: GameState = { ...get() };
         if (s.energy < 5) return;
-        if (s.hospitalUntil || s.jailUntil) return;
+        if (actionBlocked(s)) return;
         const day = new Date().toISOString().slice(0, 10);
         if (s.gymDay !== day) s = { ...s, gymDay: day, gymToday: {} };
         const plans = {
@@ -803,6 +902,7 @@ export const useGame = create<GameState & UIState & Actions>()(
           s.spd += applySoftCap(s.spd, cap, (p as { spd: number }).spd * dim);
 
         s = pushLog(s, `Gym ${track} complete`, "system");
+        s = bumpRitual(s, "gym");
         const awardPass = applyAwardPass(s);
         s = awardPass.state;
         set({
@@ -856,7 +956,10 @@ export const useGame = create<GameState & UIState & Actions>()(
       travelTo: (district) => {
         let s: GameState = { ...get() };
         if (s.district === district) return;
-        if (s.hospitalUntil || s.jailUntil || s.travelUntil) return;
+        // Lay-low may travel (leave-district counterplay); hospital/jail/in-transit may not
+        if (s.hospitalUntil && Date.now() < s.hospitalUntil) return;
+        if (s.jailUntil && Date.now() < s.jailUntil) return;
+        if (s.travelUntil && Date.now() < s.travelUntil) return;
         const d = getDistrict(district);
         if (!d) return;
         if (s.clean < d.travelCost) return;
@@ -864,6 +967,7 @@ export const useGame = create<GameState & UIState & Actions>()(
         s.clean -= d.travelCost;
         s.travelUntil = Date.now() + d.travelSeconds * 1000;
         s.travelTarget = district;
+        s.actionIndex += 1;
         if (s.investigation >= 2 && unit01(s.seed, "checkpoint", s.actionIndex) < 0.25) {
           s.heat += 10;
           s = pushLog(s, "Checkpoint — delayed and questioned.", "diegetic");
@@ -889,7 +993,9 @@ export const useGame = create<GameState & UIState & Actions>()(
       payBail: () => {
         let s: GameState = { ...get() };
         if (!s.jailUntil || Date.now() >= s.jailUntil) return;
-        const bail = bailCost(s.heat, s.investigation);
+        const bail = Math.round(
+          bailCost(s.heat, s.investigation) * politicalBailMult(s.power.politicalRung)
+        );
         if (s.clean < bail) return;
         s.clean -= bail;
         s.jailUntil = null;
@@ -902,9 +1008,7 @@ export const useGame = create<GameState & UIState & Actions>()(
       attackNpc: (npcId) => {
         let s: GameState = normalizeState(get());
         if (!s.created) return;
-        if (s.hospitalUntil && Date.now() < s.hospitalUntil) return;
-        if (s.jailUntil && Date.now() < s.jailUntil) return;
-        if (s.travelUntil && Date.now() < s.travelUntil) return;
+        if (actionBlocked(s)) return;
         const npc = getNpc(npcId);
         if (!npc) return;
         if (npc.district !== s.district) return;
@@ -1024,7 +1128,9 @@ export const useGame = create<GameState & UIState & Actions>()(
         } else if (npcLife <= 0 && s.life > 0) {
           title = "SUCCESS";
           cash = Math.round(
-            npc.lootMin + unit01(s.seed, `atk:loot:${npcId}`, s.actionIndex) * (npc.lootMax - npc.lootMin)
+            (npc.lootMin +
+              unit01(s.seed, `atk:loot:${npcId}`, s.actionIndex) * (npc.lootMax - npc.lootMin)) *
+              respectLootMult(s.power.respect)
           );
           s.street += cash;
           s.heat = Math.min(120, s.heat + npc.heatOnWin);
@@ -1108,30 +1214,47 @@ export const useGame = create<GameState & UIState & Actions>()(
       cleanMoney: (amount) => {
         let s: GameState = { ...get() };
         if (s.street < amount || amount <= 0) return;
-        const fee = Math.round(amount * 0.2);
+        const rate = laundryFeeRate(s.power.businessTierOwned);
+        const fee = Math.round(amount * rate);
         s.street -= amount;
         s.clean += amount - fee;
-        s = pushLog(s, `Cleaned ${formatMoney(amount)} (fee $${fee})`, "system");
+        const via =
+          s.power.businessTierOwned > 0
+            ? ` via front (${Math.round(rate * 100)}%)`
+            : ` (fee $${fee})`;
+        s = pushLog(s, `Cleaned ${formatMoney(amount)}${via}`, "system");
         set(s);
       },
 
       buyItem: (itemId, withStreet = false) => {
-        let s: GameState = { ...get() };
+        let s: GameState = normalizeState(get());
         const item = getItem(itemId);
         if (!item) return;
         const district = getDistrict(s.district);
-        let price = item.baseValue;
+        const price = item.baseValue;
         if (withStreet) {
-          if (district?.shopStyle === "elite") return;
-          if (price > 5000) price = 5000;
-          if (s.street < price) return;
-          s.street -= price;
+          const plan = planStreetShopBuy({
+            district: s.district,
+            shopStyle: district?.shopStyle,
+            street: s.street,
+            streetSpendVisit: s.streetSpendVisit,
+            shopSpendDistrict: s.shopSpendDistrict,
+            price,
+          });
+          if (!plan.ok) {
+            s = pushLog(s, plan.reason, "system");
+            set(s);
+            return;
+          }
+          s.street -= plan.pay;
+          s.streetSpendVisit = plan.streetSpendVisit;
+          s.shopSpendDistrict = plan.shopSpendDistrict;
         } else {
           if (s.clean < price) return;
           s.clean -= price;
         }
         s = addItem(s, itemId);
-        s = pushLog(s, `Bought ${item.name}`, "system");
+        s = pushLog(s, `Bought ${item.name}${withStreet ? " (street)" : ""}`, "system");
         set(s);
       },
 
@@ -1195,8 +1318,7 @@ export const useGame = create<GameState & UIState & Actions>()(
       interactContact: (contactId, actionId) => {
         let s: GameState = { ...get() };
         if (!s.created) return;
-        if (s.hospitalUntil && Date.now() < s.hospitalUntil) return;
-        if (s.jailUntil && Date.now() < s.jailUntil) return;
+        if (actionBlocked(s)) return;
         const result = applyContactAction(s, contactId, actionId);
         if (!result) return;
         s = result.state;
@@ -1216,57 +1338,88 @@ export const useGame = create<GameState & UIState & Actions>()(
       },
 
       investigationCounterplay: (kind) => {
-        let s: GameState = { ...get() };
+        let s: GameState = normalizeState(get());
         if (s.investigation <= 0) return;
         if (kind === "lawyer") {
-          if (s.clean < 2000) return;
-          s.clean -= 2000;
+          const base = 2000;
+          const cost = Math.round(base * (1 - politicalCounterplayDiscount(s.power.politicalRung)));
+          if (s.clean < cost) return;
+          s.clean -= cost;
           s.investigation = Math.max(0, s.investigation - 1) as 0 | 1 | 2 | 3 | 4;
+          if (s.investigation < 3) s.investigationDeadline = null;
+          s = pushLog(
+            s,
+            cost < base
+              ? `Lawyer worked the case (−$${cost} with political discount) — investigation −1`
+              : "Lawyer worked the case — investigation −1",
+            "system"
+          );
         } else if (kind === "burn") {
           if (!hasItem(s, "evidence_burn")) return;
           s = removeItem(s, "evidence_burn");
           s.investigation = Math.max(0, s.investigation - 1) as 0 | 1 | 2 | 3 | 4;
+          if (s.investigation < 3) s.investigationDeadline = null;
+          s = pushLog(s, "Evidence burned — investigation −1", "system");
         } else if (kind === "laylow") {
-          // instant soft version for solo play: costs 48h of "lay low" represented as heat drop
-          s.heat = Math.max(0, s.heat - 20);
-          s.investigation = Math.max(0, s.investigation - 2) as 0 | 1 | 2 | 3 | 4;
+          if (s.laylowUntil && Date.now() < s.laylowUntil) return;
+          if (s.hospitalUntil || s.jailUntil || s.travelUntil) return;
+          // Real timer: 4h hidden; heat decays faster; on expiry sheds 1 investigation stage
+          s.laylowUntil = Date.now() + 4 * 60 * 60 * 1000;
+          s = pushLog(s, "Went to ground — laying low 4h (actions blocked; travel allowed)", "diegetic");
+        } else if (kind === "leave") {
+          // Arrival in another district sheds a stage (see tick travel complete)
+          s = pushLog(s, "Leave district: travel somewhere else to shed a case stage.", "system");
+          s.actionIndex += 1;
+          set(s);
+          return;
         } else if (kind === "bribe") {
           if (s.street < 1000) return;
           s.street -= 1000;
-          if (unit01(s.seed, "bribe", s.actionIndex) < 0.5) {
+          const chance = 0.5 + politicalCounterplayDiscount(s.power.politicalRung) * 0.5;
+          if (unit01(s.seed, "bribe", s.actionIndex) < chance) {
             s.investigation = Math.max(0, s.investigation - 1) as 0 | 1 | 2 | 3 | 4;
+            if (s.investigation < 3) s.investigationDeadline = null;
+            s = pushLog(s, "Bribe stuck — investigation −1", "system");
           } else {
             s.investigation = Math.min(4, s.investigation + 1) as 0 | 1 | 2 | 3 | 4;
             s.heat += 20;
+            s = pushLog(s, "Bribe backfired — investigation +1, heat +20", "system");
           }
+        } else {
+          return;
         }
         s.actionIndex += 1;
-        s = pushLog(s, `Investigation counterplay: ${kind}`, "system");
         set(s);
       },
 
       refreshBazaar: () => set(ensureBazaar(get())),
 
-      bazaarBuy: (itemId) => {
-        let s: GameState = { ...get() };
-        const listing = s.bazaar.listings.find((l) => l.itemId === itemId);
+      bazaarBuy: (listingIndex) => {
+        let s: GameState = ensureBazaar(get());
+        const listing = s.bazaar.listings[listingIndex];
         if (!listing) return;
         if (s.clean < listing.price) return;
         s.clean -= listing.price;
-        s = addItem(s, itemId);
-        s = pushLog(s, `Bazaar bought ${getItem(itemId)?.name}`, "system");
+        s = addItem(s, listing.itemId);
+        s = pushLog(
+          s,
+          `Bazaar bought ${getItem(listing.itemId)?.name} from ${listing.seller ?? "vendor"}`,
+          "system"
+        );
         set(s);
       },
 
       bazaarSell: (itemId) => {
-        let s: GameState = { ...get() };
+        let s: GameState = ensureBazaar(get());
         if (!hasItem(s, itemId)) return;
         const item = getItem(itemId);
         if (!item) return;
-        const price = Math.round(item.baseValue * 0.6);
+        s = { ...s, actionIndex: s.actionIndex + 1 };
+        const price = sellPrice(item.baseValue, s.seed, s.actionIndex);
         s = removeItem(s, itemId);
         s.street += price;
-        s = pushLog(s, `Bazaar sold ${item.name} for ${formatMoney(price)}`, "system");
+        const pct = Math.round((price / Math.max(1, item.baseValue)) * 100);
+        s = pushLog(s, `Bazaar sold ${item.name} for ${formatMoney(price)} (${pct}%)`, "system");
         set(s);
       },
 
@@ -1275,16 +1428,27 @@ export const useGame = create<GameState & UIState & Actions>()(
       advanceRitual: () => {},
 
       callRitual: () => {
-        const s = get();
-        if (!s.ritual) return;
-        set({ ...s, ritual: { ...s.ritual, current: s.ritual.target, rewardClaimed: true } });
+        let s = ensureRitual(get());
+        const result = applyCallRitual(s);
+        s = result.state;
+        for (const line of result.lines) {
+          s = pushLog(s, line, "system");
+        }
+        set({
+          ...s,
+          resultModal: {
+            title: result.title,
+            lines: result.lines,
+            cashDelta: result.cashDelta,
+          },
+        });
       },
 
       investTerritory: (district) => {
         let s: GameState = { ...get() };
         const pct = s.power.territory[district] ?? 0;
         if (pct >= 100) return;
-        const cost = Math.round(5000 * Math.pow(1.6, pct / 10));
+        const cost = territoryInvestCost(pct);
         if (s.clean + s.street < cost) return;
         if (s.clean >= cost) s.clean -= cost;
         else {
@@ -1296,26 +1460,31 @@ export const useGame = create<GameState & UIState & Actions>()(
           ...s.power,
           territory: { ...s.power.territory, [district]: Math.min(100, pct + 5) },
         };
-        s = pushLog(s, `Territory ${district} → ${s.power.territory[district]}%`, "system");
+        s = pushLog(
+          s,
+          `Territory ${getDistrict(district)?.name ?? district} → ${s.power.territory[district]}% (−${formatMoney(cost)})`,
+          "system"
+        );
+        s = updateIdentity(s);
         set(s);
       },
 
       buyPoliticalRung: () => {
         let s: GameState = { ...get() };
-        const costs = [5000, 25000, 100000, 500000];
-        const rung = s.power.politicalRung;
-        if (rung >= costs.length) return;
-        const cost = costs[rung];
-        if (s.clean < cost) return;
-        s.clean -= cost;
-        s.power = { ...s.power, politicalRung: rung + 1 };
-        s = pushLog(s, `Political capital rung ${rung + 1}`, "system");
+        const next = nextPoliticalRung(s.power.politicalRung);
+        if (!next || !canBuyPolitical(s)) return;
+        s.clean -= next.costClean;
+        s.power = { ...s.power, politicalRung: s.power.politicalRung + 1 };
+        s = pushLog(s, `Political capital: ${next.title}`, "diegetic");
+        s = updateIdentity(s);
         set(s);
       },
 
-      buyRespectFlex: (cost, respect, useStreet = true) => {
+      buyRespectFlex: (flexId, useStreet = true) => {
         let s: GameState = { ...get() };
-        const pay = useStreet ? Math.round(cost / 2) : cost;
+        const flex = RESPECT_FLEX.find((f) => f.id === flexId);
+        if (!flex) return;
+        const pay = respectFlexPay(flex, useStreet);
         if (useStreet) {
           if (s.street < pay) return;
           s.street -= pay;
@@ -1323,21 +1492,21 @@ export const useGame = create<GameState & UIState & Actions>()(
           if (s.clean < pay) return;
           s.clean -= pay;
         }
-        s.power = { ...s.power, respect: s.power.respect + respect };
-        s = pushLog(s, `Respect +${respect}`, "system");
+        s.power = { ...s.power, respect: s.power.respect + flex.respect };
+        const note = useStreet ? " (street 2×)" : " (clean)";
+        s = pushLog(s, `${flex.name}: Respect +${flex.respect}${note}`, "diegetic");
+        s = updateIdentity(s);
         set(s);
       },
 
       buyBusinessTier: () => {
         let s: GameState = { ...get() };
-        const costs = [10000, 50000, 200000, 1000000];
-        const tier = s.power.businessTierOwned;
-        if (tier >= costs.length) return;
-        const cost = costs[tier];
-        if (s.clean < cost) return;
-        s.clean -= cost;
-        s.power = { ...s.power, businessTierOwned: tier + 1 };
-        s = pushLog(s, `Business tier ${tier + 1} acquired`, "system");
+        const next = nextBusinessTier(s.power.businessTierOwned);
+        if (!next || !canBuyBusiness(s)) return;
+        s.clean -= next.costClean;
+        s.power = { ...s.power, businessTierOwned: s.power.businessTierOwned + 1 };
+        s = pushLog(s, `Business empire: ${next.name}`, "diegetic");
+        s = updateIdentity(s);
         set(s);
       },
 

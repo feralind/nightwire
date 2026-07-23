@@ -3,15 +3,18 @@
 import { useMemo, useState } from "react";
 import { CRIMES } from "@/content/catalog";
 import { formatMoney } from "@/game/formulas";
+import { masteryStars, masteryTitleFor } from "@/game/mastery";
 import { Module } from "@/components/ui/Module";
 import { GameButton } from "@/components/ui/GameButton";
 import { RequirementsBox } from "@/components/ui/RequirementsBox";
+import { OddsBreakdown } from "@/components/ui/OddsBreakdown";
 import { CrimeArt, PageHero } from "@/components/ui/Visuals";
 import { useGame } from "@/store/gameStore";
 import styles from "./crimes.module.css";
 
 export default function CrimesPage() {
   const [tier, setTier] = useState<"petty" | "street" | "heavy">("petty");
+  const [openOdds, setOpenOdds] = useState<string | null>(null);
   const attemptCrime = useGame((s) => s.attemptCrime);
   const getCrimeOddsView = useGame((s) => s.getCrimeOddsView);
   const mastery = useGame((s) => s.mastery);
@@ -42,13 +45,15 @@ export default function CrimesPage() {
             ))}
           </div>
         }
-        footer="Hover Attempt for EV · odds shift with tools, district, courses, heat, chain"
+        footer="Expand Odds for lever breakdown · Attempt shows the same ritual after the roll"
       >
         <p className={styles.sub}>Nerve available: {Math.floor(nerve)}</p>
         <div className={styles.grid}>
           {list.map((c) => {
             const view = getCrimeOddsView(c.id);
-            const stars = mastery[c.family]?.level ?? 0;
+            const mastLevel = mastery[c.family]?.level ?? 0;
+            const title = masteryTitleFor(c.family, mastLevel);
+            const expanded = openOdds === c.id;
             return (
               <article
                 key={c.id}
@@ -56,8 +61,13 @@ export default function CrimesPage() {
               >
                 <CrimeArt crimeId={c.id} locked={view.locked} />
                 <div className={styles.nameBar}>
-                  <span>{c.name}</span>
-                  <span className="tabular">{"★".repeat(stars) || "—"}</span>
+                  <span>
+                    {c.name}
+                    {title ? (
+                      <span style={{ color: "var(--text-dim)", marginLeft: 6, fontWeight: 400 }}>{title}</span>
+                    ) : null}
+                  </span>
+                  <span className="tabular">{masteryStars(mastLevel)}</span>
                 </div>
                 <div className={styles.meta}>
                   <div className={styles.metaRow}>
@@ -79,10 +89,21 @@ export default function CrimesPage() {
                 </div>
                 <div className={styles.actions}>
                   {view.locked && <RequirementsBox reasons={view.reasons} />}
+                  <button
+                    type="button"
+                    className={styles.oddsToggle}
+                    aria-expanded={expanded}
+                    onClick={() => setOpenOdds(expanded ? null : c.id)}
+                  >
+                    {expanded ? "Hide odds" : `Odds ${(view.odds * 100).toFixed(0)}% · EV ${view.ev.toFixed(0)}`}
+                  </button>
+                  {expanded && (
+                    <OddsBreakdown odds={view.odds} ev={view.ev} modifiers={view.modifiers} compact />
+                  )}
                   <GameButton
                     disabled={view.locked || nerve < c.nerve}
                     onClick={() => attemptCrime(c.id)}
-                    title={`EV ${view.ev.toFixed(0)}`}
+                    title={`EV ${view.ev.toFixed(0)} · ${(view.odds * 100).toFixed(1)}%`}
                   >
                     Attempt
                   </GameButton>

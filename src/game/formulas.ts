@@ -118,6 +118,14 @@ export function happyJobQualityPenalty(happy: number): number {
   return 0.15;
 }
 
+/** Study speed multiplier — low happy slows courses (soft pressure) */
+export function happyStudyFactor(happy: number): number {
+  if (happy >= 500) return 1;
+  if (happy >= 300) return 0.9;
+  if (happy >= 100) return 0.75;
+  return 0.6;
+}
+
 export function softCap(level: number, coursesCompleted: number): number {
   return level * 10 + coursesCompleted * 5;
 }
@@ -178,7 +186,16 @@ export function armorSoakAmount(armorSoak: number, def: number): number {
 }
 
 export function medicalCost(district: string, heat: number): number {
-  const base = district === "docksreach" ? 280 : district === "millstone" ? 220 : 200;
+  const base =
+    district === "docksreach"
+      ? 280
+      : district === "millstone" || district === "oldcommons"
+        ? 220
+        : district === "ashcourt"
+          ? 160
+          : district === "spireyard"
+            ? 260
+            : 200;
   return base + Math.floor(heat / 10) * 25;
 }
 

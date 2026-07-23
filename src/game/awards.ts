@@ -58,6 +58,8 @@ export function awardConditionMet(id: string, s: GameState): boolean {
       return s.lifetime.gymSessions >= 10;
     case "three_rails":
       return s.lifetime.districtsVisited.length >= 3;
+    case "six_rails":
+      return s.lifetime.districtsVisited.length >= 6;
     case "alley_mark":
       return s.lifetime.attacksWon >= 1;
     case "holding_cell_grad":
@@ -120,7 +122,9 @@ export function awardHint(id: string): string {
     case "iron_hours":
       return "Train at the gym 10 times";
     case "three_rails":
-      return "Visit all 3 districts";
+      return "Visit 3 districts";
+    case "six_rails":
+      return "Visit all 6 districts";
     case "alley_mark":
       return "Win an NPC attack";
     case "holding_cell_grad":

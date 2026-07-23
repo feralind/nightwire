@@ -1,6 +1,6 @@
 "use client";
 
-import type { CSSProperties, ReactNode } from "react";
+import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 
 /** Procedural atmospheric art panels — original Nightwire look, no Torn assets */
 
@@ -216,6 +216,20 @@ export function PageHero({
   tall?: boolean;
   children?: ReactNode;
 }) {
+  const [collapsed, setCollapsed] = useState(false);
+
+  useEffect(() => {
+    try {
+      if (typeof window !== "undefined" && sessionStorage.getItem("nw-hero-strip") === "1") {
+        setCollapsed(true);
+      } else if (typeof window !== "undefined") {
+        sessionStorage.setItem("nw-hero-strip", "1");
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
   const tones: Record<string, string> = {
     default: "linear-gradient(120deg,#1a1a22 0%,#121218 60%,#0e0e10 100%)",
     crime: "linear-gradient(120deg,#1c1014 0%,#2a1520 40%,#0e0e10 100%)",
@@ -227,11 +241,16 @@ export function PageHero({
     campus: "linear-gradient(120deg,#14161c 0%,#243048 40%,#0e0e10 100%)",
   };
 
+  const strip = collapsed;
   const style: CSSProperties = {
     position: "relative",
     margin: "-6px -12px 12px",
-    padding: tall ? "48px 18px 20px" : "22px 16px 16px",
-    minHeight: tall ? 168 : image ? 120 : undefined,
+    padding: strip
+      ? "6px var(--hero-pad-x)"
+      : tall
+        ? "var(--hero-pad-y) var(--hero-pad-x)"
+        : "8px var(--hero-pad-x)",
+    minHeight: strip ? "var(--hero-strip-h)" : tall ? "var(--hero-min-h-tall)" : image ? "var(--hero-min-h)" : undefined,
     background: image
       ? `linear-gradient(105deg,rgba(8,8,10,0.92) 0%,rgba(8,8,10,0.55) 45%,rgba(8,8,10,0.75) 100%), center/cover no-repeat url(${image})`
       : tones[tone],
@@ -250,32 +269,70 @@ export function PageHero({
           pointerEvents: "none",
         }}
       />
-      <div style={{ position: "relative", maxWidth: 640 }}>
-        <h1
-          style={{
-            margin: 0,
-            fontSize: tall ? 26 : 22,
-            letterSpacing: "0.04em",
-            fontWeight: 700,
-            textShadow: image ? "0 2px 8px rgba(0,0,0,0.85)" : undefined,
-          }}
-        >
-          {title}
-        </h1>
-        {subtitle && (
-          <p
+      <div
+        style={{
+          position: "relative",
+          maxWidth: 640,
+          display: "flex",
+          alignItems: strip ? "center" : "flex-start",
+          justifyContent: "space-between",
+          gap: 8,
+        }}
+      >
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <h1
             style={{
-              margin: "6px 0 0",
-              color: "var(--text-dim)",
-              fontSize: 12,
-              lineHeight: 1.45,
-              textShadow: image ? "0 1px 4px rgba(0,0,0,0.9)" : undefined,
+              margin: 0,
+              fontSize: strip ? 15 : "var(--hero-title)",
+              letterSpacing: "0.04em",
+              fontWeight: 700,
+              textShadow: image ? "0 2px 8px rgba(0,0,0,0.85)" : undefined,
             }}
           >
-            {subtitle}
-          </p>
-        )}
-        {children}
+            {title}
+          </h1>
+          {!strip && subtitle && (
+            <p
+              style={{
+                margin: "4px 0 0",
+                color: "var(--text-dim)",
+                fontSize: 11,
+                lineHeight: 1.35,
+                textShadow: image ? "0 1px 4px rgba(0,0,0,0.9)" : undefined,
+              }}
+            >
+              {subtitle}
+            </p>
+          )}
+          {!strip && children}
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            setCollapsed((c) => {
+              const next = !c;
+              try {
+                sessionStorage.setItem("nw-hero-strip", next ? "1" : "0");
+              } catch {
+                /* ignore */
+              }
+              return next;
+            });
+          }}
+          style={{
+            flexShrink: 0,
+            background: "var(--bg-inset)",
+            border: "1px solid var(--border)",
+            color: "var(--text-dim)",
+            fontSize: 10,
+            padding: "2px 6px",
+            cursor: "pointer",
+            borderRadius: "var(--r1)",
+          }}
+          aria-label={strip ? "Expand hero" : "Collapse hero"}
+        >
+          {strip ? "▾" : "▴"}
+        </button>
       </div>
     </div>
   );
@@ -444,6 +501,10 @@ export const DISTRICT_ART: Record<string, string> = {
   glassrow: "/art/districts/glassrow.webp",
   millstone: "/art/districts/millstone.webp",
   docksreach: "/art/districts/docksreach.webp",
+  // V1 districts reuse existing plates until dedicated art lands
+  ashcourt: "/art/districts/millstone.webp",
+  spireyard: "/art/districts/glassrow.webp",
+  oldcommons: "/art/districts/docksreach.webp",
 };
 
 export const SCHOOL_ART: Record<string, string> = {

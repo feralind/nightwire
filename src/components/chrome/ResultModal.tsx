@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { formatMoney } from "@/game/formulas";
 import { useGame } from "@/store/gameStore";
 import { GameButton } from "@/components/ui/GameButton";
+import { OddsBreakdown } from "@/components/ui/OddsBreakdown";
 import styles from "./ResultModal.module.css";
 
 export function ResultModal() {
@@ -56,6 +57,22 @@ export function ResultModal() {
           <div className={`tabular ${modal.cashDelta >= 0 ? "money-pos" : "money-neg"} ${styles.cash}`}>
             {modal.cashDelta >= 0 ? "+" : ""}
             {formatMoney(modal.cashDelta)}
+          </div>
+        )}
+        {modal.ritual && (
+          <div className={styles.ritual}>
+            <div className={styles.ritualHead}>Attempt breakdown</div>
+            <OddsBreakdown
+              odds={modal.ritual.odds}
+              ev={modal.ritual.ev}
+              modifiers={modal.ritual.modifiers}
+              ritual={{
+                seed: modal.ritual.seed,
+                actionKey: modal.ritual.actionKey,
+                actionIndex: modal.ritual.actionIndex,
+                roll: modal.ritual.roll,
+              }}
+            />
           </div>
         )}
         <div className={styles.actions}>

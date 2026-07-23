@@ -1,0 +1,60 @@
+.kitGrid {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 4px;
+  padding: 8px 0;
+}
+
+.kitCell {
+  aspect-ratio: 1;
+  border: 1px solid var(--border);
+  background: var(--bg-inset);
+  color: var(--text-dim);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--r1);
+}
+
+.kitCell:hover {
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+.kitOn {
+  border-color: var(--accent-rail);
+  color: var(--text);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent-rail) 35%, transparent);
+}
+
+.kitGlyph {
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.kitQty {
+  font-size: 9px;
+}
+
+.itemBlock {
+  border-top: 1px solid var(--border);
+  padding-top: 2px;
+}
+
+.itemActions {
+  display: flex;
+  gap: 6px;
+  padding: 4px 0 8px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 700px) {
+  .kitGrid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}

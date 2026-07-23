@@ -111,11 +111,12 @@ describe("education gating", () => {
   });
 });
 
-describe("v0 catalog floors", () => {
-  it("ships 8 jobs and 6 courses", () => {
-    expect(JOBS).toHaveLength(8);
+describe("v1 catalog floors", () => {
+  it("ships 24 jobs across 8 careers × 3 ranks", () => {
+    expect(JOBS).toHaveLength(24);
     expect(COURSES).toHaveLength(6);
-    expect(JOBS.filter((j) => j.rank === 1)).toHaveLength(4);
-    expect(JOBS.filter((j) => j.rank === 2)).toHaveLength(4);
+    expect(JOBS.filter((j) => j.rank === 1)).toHaveLength(8);
+    expect(JOBS.filter((j) => j.rank === 2)).toHaveLength(8);
+    expect(JOBS.filter((j) => j.rank === 3)).toHaveLength(8);
   });
 });

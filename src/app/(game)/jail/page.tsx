@@ -4,6 +4,7 @@ import { Module } from "@/components/ui/Module";
 import { GameButton } from "@/components/ui/GameButton";
 import { PageHero, SceneBanner } from "@/components/ui/Visuals";
 import { bailCost, formatMmSs, formatMoney, heatBand } from "@/game/formulas";
+import { politicalBailMult } from "@/game/power";
 import { useGame } from "@/store/gameStore";
 import hub from "../hub.module.css";
 
@@ -13,7 +14,9 @@ export default function JailPage() {
   const s = useGame();
   const now = Date.now();
   const active = !!(s.jailUntil && now < s.jailUntil);
-  const bail = bailCost(s.heat, s.investigation);
+  const bail = Math.round(
+    bailCost(s.heat, s.investigation) * politicalBailMult(s.power.politicalRung)
+  );
   const remaining = active ? ((s.jailUntil as number) - now) / 1000 : 0;
 
   return (

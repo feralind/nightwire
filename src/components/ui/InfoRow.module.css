@@ -1,0 +1,45 @@
+.block {
+  display: flex;
+  flex-direction: column;
+}
+
+.row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s2);
+  padding: var(--row-tight) 0;
+  border-bottom: 1px solid var(--border);
+  font-size: var(--font);
+  line-height: 1.25;
+  min-height: var(--row);
+}
+
+.row:last-child {
+  border-bottom: 0;
+}
+
+.label {
+  color: var(--text-dim);
+  flex: 1;
+  min-width: 0;
+}
+
+.value {
+  color: var(--text);
+  font-weight: 500;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.pos {
+  color: var(--success);
+}
+
+.neg {
+  color: var(--danger);
+}
+
+.warn {
+  color: var(--text-warn);
+}

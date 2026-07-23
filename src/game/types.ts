@@ -1,4 +1,10 @@
-export type DistrictId = "glassrow" | "millstone" | "docksreach";
+export type DistrictId =
+  | "glassrow"
+  | "millstone"
+  | "docksreach"
+  | "ashcourt"
+  | "spireyard"
+  | "oldcommons";
 
 export type CrimeTier = "petty" | "street" | "heavy";
 
@@ -23,7 +29,7 @@ export type CrimeDef = {
 export type JobDef = {
   id: string;
   career: string;
-  rank: 1 | 2;
+  rank: 1 | 2 | 3;
   title: string;
   basePay: number;
   energy: number;
@@ -34,7 +40,7 @@ export type JobDef = {
   requiresLevel?: number;
   /** Course required to apply (rank 1) or to unlock apply path */
   requiresCourse?: string;
-  /** Job XP needed on prior rank before promote (rank 2) */
+  /** Job XP needed on prior rank before promote */
   promoteXp?: number;
   /** Exam course required to promote into this rank */
   promoteCourse?: string;
@@ -99,7 +105,7 @@ export type DistrictDef = {
   crimeBias: Partial<Record<CrimeTier, number>>;
   travelCost: number;
   travelSeconds: number;
-  shopStyle: "elite" | "tools" | "black";
+  shopStyle: "elite" | "tools" | "black" | "medical";
   risk: string;
 };
 

@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { bankInterestRate, transcriptPerkSum } from "@/game/careers";
 import { formatMoney } from "@/game/formulas";
+import { laundryFeeRate, ownedBusiness } from "@/game/power";
 import { Module } from "@/components/ui/Module";
 import { GameButton } from "@/components/ui/GameButton";
 import { PageHero } from "@/components/ui/Visuals";
@@ -17,7 +18,9 @@ export default function BankPage() {
   const ratePct = (rate * 100).toFixed(1);
   const streetFee = Math.round(Math.max(0, amt) * 0.15);
   const streetNet = Math.max(0, amt) - streetFee;
-  const cleanFee = Math.round(Math.max(0, amt) * 0.2);
+  const laundryRate = laundryFeeRate(s.power.businessTierOwned);
+  const cleanFee = Math.round(Math.max(0, amt) * laundryRate);
+  const front = ownedBusiness(s.power.businessTierOwned);
 
   const presets = useMemo(() => [100, 500, 1000, 5000], []);
 
@@ -60,7 +63,8 @@ export default function BankPage() {
               Street <span className="tabular">{formatMoney(s.street)}</span>
             </div>
             <p className={styles.sub} style={{ marginTop: 6 }}>
-              Street→bank fee 15% · Street→clean laundry 20%
+              Street→bank fee 15% · Street→clean laundry {Math.round(laundryRate * 100)}%
+              {front ? ` (${front.name})` : ""}
             </p>
           </div>
         </div>
@@ -106,7 +110,7 @@ export default function BankPage() {
         </div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
           <GameButton variant="ghost" disabled={amt <= 0 || s.street < amt} onClick={() => s.cleanMoney(amt)}>
-            Laundry street→clean (−{formatMoney(cleanFee)} / 20%)
+            Laundry street→clean (−{formatMoney(cleanFee)} / {Math.round(laundryRate * 100)}%)
           </GameButton>
         </div>
       </Module>

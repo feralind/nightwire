@@ -1,5 +1,7 @@
 import { COURSES, getProperty } from "@/content/catalog";
 import { bankInterestRate } from "@/game/careers";
+import { happyStudyFactor } from "@/game/formulas";
+import { businessIncomeForHours } from "@/game/power";
 import { weeklyPropertyNet } from "@/game/properties";
 import { applyRivalAwayPressure } from "@/game/rival";
 import { unit01 } from "@/game/rng";
@@ -91,6 +93,15 @@ export function applyCatchUp(state: GameState, now = Date.now()): TickResult {
     }
   }
 
+  // Business empire passive clean income (territory amplifies)
+  if (s.power.businessTierOwned > 0 && hours >= 1) {
+    const { income, label } = businessIncomeForHours(s.power, hours);
+    if (income > 0) {
+      s.clean += income;
+      legal.push(label);
+    }
+  }
+
   // High heat + property → raid/bribe pressure (emergence recipe)
   if (s.ownedProperties.length && s.heat >= 70 && hours >= 8) {
     const risk =
@@ -119,8 +130,15 @@ export function applyCatchUp(state: GameState, now = Date.now()): TickResult {
     const jailed = Boolean(s.jailUntil && now < s.jailUntil);
     if (course && !jailed) {
       const stressSlow = 1 - Math.min(0.25, s.stress * 0.002);
-      const add = hours * stressSlow;
+      const happySlow = happyStudyFactor(s.happy);
+      const add = hours * stressSlow * happySlow;
       s.courseProgressHours += add;
+      if (s.ritual && !s.ritual.rewardClaimed && s.ritual.kind === "study" && add > 0) {
+        s.ritual = {
+          ...s.ritual,
+          current: Math.min(s.ritual.target, s.ritual.current + add),
+        };
+      }
       const probation = s.heat >= 70;
       const stipend = probation ? 0 : Math.floor(add * course.stipendPerHour);
       if (stipend > 0) {
@@ -158,6 +176,7 @@ export function applyCatchUp(state: GameState, now = Date.now()): TickResult {
     city.push("Released from jail");
   }
   if (s.travelUntil && now >= s.travelUntil && s.travelTarget) {
+    const fromDistrict = s.district;
     s.district = s.travelTarget;
     const visited = new Set(s.lifetime.districtsVisited);
     visited.add(s.travelTarget);
@@ -168,7 +187,33 @@ export function applyCatchUp(state: GameState, now = Date.now()): TickResult {
     };
     s.travelUntil = null;
     s.travelTarget = null;
+    // New district = new shop visit
+    s.streetSpendVisit = 0;
+    s.shopSpendDistrict = s.district;
     city.push(`Arrived in ${s.district}`);
+    // Leave-district counterplay: shedding heat on the case
+    if (s.investigation > 0 && fromDistrict !== s.district) {
+      s.investigation = Math.max(0, s.investigation - 1) as GameState["investigation"];
+      if (s.investigation < 3) s.investigationDeadline = null;
+      city.push("Left the heat behind — investigation −1");
+    }
+  }
+
+  // Lay-low: faster heat decay while hidden; on expiry shed investigation
+  if (s.laylowUntil) {
+    if (now < s.laylowUntil) {
+      // Extra heat decay while laying low (scales with elapsed hours, including 1s online ticks)
+      s.heat = Math.max(0, s.heat - hours * 1.5);
+    } else {
+      s.laylowUntil = null;
+      if (s.investigation > 0) {
+        s.investigation = Math.max(0, s.investigation - 1) as GameState["investigation"];
+        if (s.investigation < 3) s.investigationDeadline = null;
+        city.push("Lay-low over — investigation −1");
+      }
+      s.heat = Math.max(0, s.heat - 10);
+      city.push("Came up from lay-low");
+    }
   }
 
   // Investigation deadline

@@ -9,11 +9,30 @@ export type LogEntry = {
   kind: "system" | "diegetic" | "result";
 };
 
+export type OddsModifier = { label: string; value: number };
+
+/** Presentational Attempt ritual payload — does not change roll math */
+export type AttemptRitualBreakdown = {
+  /** Deterministic roll input: seed + actionKey + actionIndex → rollD10000 */
+  seed: string;
+  actionKey: string;
+  actionIndex: number;
+  /** Raw 0..9999 roll from rollD10000 */
+  roll: number;
+  /** Final odds that applied (0..1) */
+  odds: number;
+  /** EV at attempt time */
+  ev: number;
+  /** Skill levers from getCrimeOddsView / computeCrimeOdds */
+  modifiers: OddsModifier[];
+};
+
 export type ResultModalState = {
   title: "SUCCESS" | "FAILED" | "JAILED" | "HOSPITALIZED" | "MIXED";
   lines: string[];
   cashDelta: number;
   repeatable?: { type: "crime" | "job" | "gig"; id: string };
+  ritual?: AttemptRitualBreakdown;
 } | null;
 
 export type AwayModalState = {
@@ -121,10 +140,16 @@ export type GameState = {
   jailUntil: number | null;
   travelUntil: number | null;
   travelTarget: DistrictId | null;
+  /** Lay-low timer — blocks street actions until expiry, then sheds investigation */
+  laylowUntil: number | null;
   /** Soft combat debuffs until hospital discharge or natural decay */
   wounds: { arm: number; leg: number };
   hospitalReason: string | null;
   jailReason: string | null;
+
+  /** Cumulative street $ spent at shops this district visit */
+  streetSpendVisit: number;
+  shopSpendDistrict: DistrictId | null;
 
   jobId: string | null;
   jobXp: number;
@@ -169,10 +194,14 @@ export type GameState = {
   contactTips: ContactTip[];
 
   ritual: { text: string; current: number; target: number; kind: string; rewardClaimed: boolean } | null;
+  /** Calendar day the current ritual was minted */
+  ritualDay: number;
+  /** Post-Call-it temporary bonus */
+  ritualBonus: { kind: string; cashMult: number; remaining: number } | null;
   mastery: MasteryState;
   power: PowerTracks;
 
-  bazaar: { listings: { itemId: string; price: number }[]; day: number };
+  bazaar: { listings: { itemId: string; price: number; seller?: string }[]; day: number };
   directorEvent: { id: string; label: string; until: number } | null;
 
   lastCrimeId: string | null;
@@ -249,9 +278,12 @@ export function createInitialState(partial?: Partial<GameState>): GameState {
     jailUntil: null,
     travelUntil: null,
     travelTarget: null,
+    laylowUntil: null,
     wounds: { arm: 0, leg: 0 },
     hospitalReason: null,
     jailReason: null,
+    streetSpendVisit: 0,
+    shopSpendDistrict: null,
     jobId: null,
     jobXp: 0,
     shiftsThisWeek: 0,
@@ -281,9 +313,18 @@ export function createInitialState(partial?: Partial<GameState>): GameState {
     contacts: {},
     contactTips: [],
     ritual: null,
+    ritualDay: 0,
+    ritualBonus: null,
     mastery: {},
     power: {
-      territory: { glassrow: 0, millstone: 0, docksreach: 0 },
+      territory: {
+        glassrow: 0,
+        millstone: 0,
+        docksreach: 0,
+        ashcourt: 0,
+        spireyard: 0,
+        oldcommons: 0,
+      },
       politicalRung: 0,
       respect: 0,
       businessTierOwned: 0,
@@ -325,6 +366,9 @@ export function normalizeState(s: GameState): GameState {
     wounds: s.wounds ?? { arm: 0, leg: 0 },
     hospitalReason: s.hospitalReason ?? null,
     jailReason: s.jailReason ?? null,
+    laylowUntil: s.laylowUntil ?? null,
+    streetSpendVisit: s.streetSpendVisit ?? 0,
+    shopSpendDistrict: s.shopSpendDistrict ?? null,
     shiftLog: s.shiftLog ?? [],
     gigLog: s.gigLog ?? [],
     gigsThisWeek: s.gigsThisWeek ?? 0,
@@ -332,8 +376,23 @@ export function normalizeState(s: GameState): GameState {
     lifetime,
     unlockedAwards: s.unlockedAwards ?? {},
     ownedProperties,
+    ritualDay: s.ritualDay ?? 0,
+    ritualBonus: s.ritualBonus ?? null,
     rivalPressureAt: s.rivalPressureAt ?? 0,
     contacts: s.contacts ?? {},
     contactTips: s.contactTips ?? [],
+    power: {
+      territory: {
+        glassrow: s.power?.territory?.glassrow ?? 0,
+        millstone: s.power?.territory?.millstone ?? 0,
+        docksreach: s.power?.territory?.docksreach ?? 0,
+        ashcourt: s.power?.territory?.ashcourt ?? 0,
+        spireyard: s.power?.territory?.spireyard ?? 0,
+        oldcommons: s.power?.territory?.oldcommons ?? 0,
+      },
+      politicalRung: s.power?.politicalRung ?? 0,
+      respect: s.power?.respect ?? 0,
+      businessTierOwned: s.power?.businessTierOwned ?? 0,
+    },
   };
 }
