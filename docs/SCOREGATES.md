@@ -25,12 +25,10 @@
 - [ ] ≥2 progression tracks advanced
 - [ ] Locked content clickable with requirements
 
-## Hour-10 (target ≥7/8)
-- [ ] Hospital/jail recovered
-- [ ] Education unlock changed content
-- [ ] Money while course active
-- [ ] Post-course improvement visible
-- [ ] ≥5 shifts + special
-- [ ] District mod changed %
-- [ ] Passive income after offline
-- [ ] Newspaper/log reacted
+## Hour-20 (post-gate / V1)
+- [ ] Bazaar transaction
+- [ ] Daily ritual completed
+- [ ] Mastery level gained
+- [ ] Power track investment
+- [ ] Race entered or faction assisted
+- [ ] Bounty hunted

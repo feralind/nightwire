@@ -208,6 +208,8 @@ export function emptyPowerTracks(
     "ashcourt",
     "spireyard",
     "oldcommons",
+    "neonpier",
+    "redclinic",
   ]
 ): PowerTracks {
   const territory = {} as Record<DistrictId, number>;

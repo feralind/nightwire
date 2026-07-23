@@ -95,6 +95,9 @@ import {
   territoryInvestCost,
   territoryOddsBonus,
 } from "@/game/power";
+import { FACTIONS, assistPay, currentWar, warWeekBonus } from "@/game/faction";
+import { activeBounties, refreshBounties } from "@/game/bounties";
+import { resolveRace } from "@/game/raceway";
 import { canBuyProperty } from "@/game/properties";
 import {
   armoryCraftCost,
@@ -186,6 +189,12 @@ type Actions = {
   hireBusinessStaff: () => void;
   runHeistPrep: (heistId: string) => void;
   executeHeist: (heistId: string, choice: HeistExecuteChoice) => void;
+  enterRace: (raceId: string) => void;
+  assistFaction: (factionId: string) => void;
+  refreshBountyBoard: () => void;
+  claimBountyAttack: (npcId: string) => void;
+  playCasino: (tableId: string) => void;
+  redeemComps: () => void;
   exportSave: () => string;
   importSave: (json: string) => void;
   resetSave: () => void;
@@ -1889,6 +1898,265 @@ export const useGame = create<GameState & UIState & Actions>()(
             lines: [flavor, ...result.lines, ...awardPass.unlocked.map((a) => `Award: ${a.name}`)],
             cashDelta: result.cashDelta,
             ritual: result.ritual,
+          },
+        });
+      },
+
+      enterRace: (raceId) => {
+        let s: GameState = normalizeState(get());
+        if (!s.created || actionBlocked(s)) return;
+        const resolved = resolveRace(s, raceId);
+        if (!resolved.ok) {
+          set(pushLog(s, resolved.reason, "system"));
+          return;
+        }
+        const { race, win, payout, odds, sectors, sectorWins } = resolved;
+        let clean = s.clean;
+        let street = s.street;
+        let fee = race.entryFee;
+        if (race.streetOk) {
+          const fromStreet = Math.min(street, fee);
+          street -= fromStreet;
+          fee -= fromStreet;
+          clean -= fee;
+        } else {
+          clean -= fee;
+        }
+        if (win) {
+          if (race.streetOk) street += payout;
+          else clean += payout;
+        }
+        const heatAdd = race.heatOnEnter ?? 0;
+        s = {
+          ...s,
+          clean,
+          street,
+          energy: s.energy - race.energy,
+          actionIndex: s.actionIndex + 1,
+          raceWins: s.raceWins + (win ? 1 : 0),
+          heat: Math.min(120, s.heat + heatAdd + (win ? 0 : 1)),
+          happy: Math.min(s.happyMax, Math.max(0, s.happy + (win ? 8 : -6))),
+          factionRep: {
+            ...s.factionRep,
+            mill_iron: clamp((s.factionRep.mill_iron ?? 0) + (win ? 2 : -1), -100, 100),
+          },
+        };
+        s = addXp(s, win ? 10 : 3);
+        const sectorLine = sectors.map((seg) => `${seg.name}: ${seg.won ? "clear" : "slip"}`).join(" · ");
+        s = pushLog(
+          s,
+          win
+            ? `Race win — ${race.name} (+${formatMoney(payout)}, ${sectorWins}/3 sectors)`
+            : `Race loss — ${race.name} (${sectorWins}/3 sectors)`,
+          "result"
+        );
+        s = maybeRival(s);
+        const awardPass = applyAwardPass(s);
+        set({
+          ...awardPass.state,
+          resultModal: {
+            title: win ? "SUCCESS" : "FAILED",
+            lines: [
+              win ? `You take the ${race.name}.` : `The ghost field eats you.`,
+              sectorLine,
+              `Entry ${formatMoney(race.entryFee)} · Payout ${formatMoney(win ? payout : 0)} · Odds ${(odds * 100).toFixed(1)}%`,
+            ],
+            cashDelta: win ? payout - race.entryFee : -race.entryFee,
+          },
+        });
+      },
+
+      assistFaction: (factionId) => {
+        let s: GameState = normalizeState(get());
+        if (!s.created || actionBlocked(s)) return;
+        const faction = FACTIONS.find((f) => f.id === factionId);
+        if (!faction) return;
+        if (s.energy < 5) {
+          set(pushLog(s, "Need 5 energy to assist.", "system"));
+          return;
+        }
+        const war = currentWar();
+        const week = war?.week ?? Math.floor(Date.now() / (7 * 86_400_000));
+        let assists = s.factionAssistsWar;
+        if (s.factionWarWeek !== week) {
+          assists = 0;
+        }
+        const inWar = Boolean(war && (war.a === factionId || war.b === factionId));
+        const rep = s.factionRep[factionId] ?? 0;
+        const pay = Math.round(assistPay(rep) * (inWar ? warWeekBonus(rep) : 1) * (inWar ? 1.25 : 1));
+        const nextRep = clamp(rep + (inWar ? 8 : 5), -100, 100);
+        // Rival faction soft loss during war
+        const rivalId = war && war.a === factionId ? war.b : war && war.b === factionId ? war.a : null;
+        const nextFactionRep = { ...s.factionRep, [factionId]: nextRep };
+        if (rivalId && inWar) {
+          nextFactionRep[rivalId] = clamp((nextFactionRep[rivalId] ?? 0) - 2, -100, 100);
+        }
+        s = {
+          ...s,
+          energy: s.energy - 5,
+          clean: s.clean + pay,
+          legitimacy: clamp(s.legitimacy + 0.4, 0, 100),
+          factionRep: nextFactionRep,
+          factionAssistsWar: assists + (inWar ? 1 : 0),
+          factionWarWeek: week,
+          actionIndex: s.actionIndex + 1,
+          power: {
+            ...s.power,
+            respect: s.power.respect + (inWar ? 1 : 0),
+          },
+        };
+        s = pushLog(
+          s,
+          `Assisted ${faction.name} (+${formatMoney(pay)} clean, rep ${nextRep}${inWar ? ", war chain" : ""})`,
+          "result"
+        );
+        set({
+          ...s,
+          resultModal: {
+            title: "SUCCESS",
+            lines: [
+              `${faction.name} nods you through.`,
+              inWar ? `War week assist — chain ${assists + 1}` : "Peacetime favor.",
+              `Rep ${rep} → ${nextRep}`,
+              `+${formatMoney(pay)} clean`,
+            ],
+            cashDelta: pay,
+          },
+        });
+      },
+
+      refreshBountyBoard: () => {
+        let s: GameState = normalizeState(get());
+        if (!s.created) return;
+        const list = refreshBounties(s);
+        s = { ...s, bounties: list };
+        s = pushLog(s, `Bounty board refreshed (${list.length} contracts).`, "system");
+        set(s);
+      },
+
+      claimBountyAttack: (npcId) => {
+        const s0 = normalizeState(get());
+        const bounty = activeBounties(s0.bounties).find((b) => b.npcId === npcId);
+        if (!bounty) {
+          set(pushLog(s0, "That bounty expired.", "system"));
+          return;
+        }
+        const wonBefore = s0.lifetime.attacksWon;
+        get().attackNpc(npcId);
+        let s = normalizeState(get());
+        if (s.lifetime.attacksWon > wonBefore) {
+          s = {
+            ...s,
+            clean: s.clean + bounty.payout,
+            bounties: s.bounties.filter((b) => b.npcId !== npcId),
+            rivalScore: s.rivalScore + 1,
+          };
+          const npc = getNpc(npcId);
+          s = pushLog(
+            s,
+            `Bounty claimed on ${npc?.name ?? npcId} (+${formatMoney(bounty.payout)} clean)`,
+            "diegetic"
+          );
+          const modal = get().resultModal;
+          set({
+            ...s,
+            resultModal: modal
+              ? {
+                  ...modal,
+                  lines: [...(modal.lines ?? []), `Bounty payout +${formatMoney(bounty.payout)} clean`],
+                  cashDelta: (modal.cashDelta ?? 0) + bounty.payout,
+                }
+              : modal,
+          });
+        }
+      },
+
+      playCasino: (tableId) => {
+        let s: GameState = normalizeState(get());
+        if (!s.created || actionBlocked(s)) return;
+        const TABLES: Record<
+          string,
+          { name: string; bet: number; winChance: number; payout: number; edge: string }
+        > = {
+          slots: { name: "Wire Slots", bet: 50, winChance: 0.46, payout: 1.9, edge: "EV −5%" },
+          blackjack: { name: "Neon Blackjack", bet: 100, winChance: 0.45, payout: 1.9, edge: "EV −5%" },
+          highlow: { name: "High / Low", bet: 75, winChance: 0.48, payout: 1.85, edge: "EV −4%" },
+          roulette: { name: "Amber Roulette", bet: 200, winChance: 0.4, payout: 2.2, edge: "EV −12%" },
+          poker: { name: "Video Poker", bet: 100, winChance: 0.42, payout: 2, edge: "EV −8%" },
+        };
+        const table = TABLES[tableId];
+        if (!table) return;
+        if (s.clean < table.bet) {
+          set(pushLog(s, "Need clean cash for the felt.", "system"));
+          return;
+        }
+        // Commerce Bookkeeping = tiny card-count flavor (still house edge)
+        const countPerk = s.completedCourses.includes("cf1") ? 0.015 : 0;
+        const chance = Math.min(0.52, table.winChance + countPerk);
+        const win = unit01(s.seed, `casino_${tableId}`, s.actionIndex + 1) < chance;
+        const payout = win ? Math.round(table.bet * table.payout) : 0;
+        const delta = payout - table.bet;
+        const comps = Math.max(1, Math.floor(table.bet / 40));
+        const winStreak = win ? s.casinoWinStreak + 1 : 0;
+        const lossStreak = win ? 0 : s.casinoLossStreak + 1;
+        let heat = s.heat;
+        let stress = s.stress;
+        if (!win) stress = Math.min(100, stress + 2 + (lossStreak >= 3 ? 2 : 0));
+        if (win && winStreak >= 4) heat = Math.min(120, heat + 2);
+        s = {
+          ...s,
+          actionIndex: s.actionIndex + 1,
+          clean: s.clean - table.bet + payout,
+          stress,
+          heat,
+          happy: Math.min(s.happyMax, Math.max(0, s.happy + (win ? 5 : -8))),
+          compPoints: s.compPoints + comps,
+          casinoWinStreak: winStreak,
+          casinoLossStreak: lossStreak,
+        };
+        s = pushLog(
+          s,
+          win ? `${table.name} pays (+${formatMoney(delta)})` : `${table.name} — house wins`,
+          "result"
+        );
+        set({
+          ...s,
+          resultModal: {
+            title: win ? "SUCCESS" : "FAILED",
+            lines: [
+              win ? `${table.name} pays.` : `${table.name} — house wins.`,
+              `Bet ${formatMoney(table.bet)} · ${table.edge}${countPerk ? " · Bookkeeping edge" : ""}`,
+              win ? `Payout ${formatMoney(payout)}` : "Chips stay on the felt.",
+              `+${comps} comps (total ${s.compPoints})`,
+              lossStreak >= 3 ? "Loss streak raising stress." : winStreak >= 4 ? "Lucky streak draws eyes (heat)." : "",
+            ].filter(Boolean),
+            cashDelta: delta,
+          },
+        });
+      },
+
+      redeemComps: () => {
+        let s: GameState = normalizeState(get());
+        if (!s.created) return;
+        const cost = 100;
+        if (s.compPoints < cost) {
+          set(pushLog(s, `Need ${cost} comps for suite leisure.`, "system"));
+          return;
+        }
+        s = {
+          ...s,
+          compPoints: s.compPoints - cost,
+          happy: Math.min(s.happyMax, s.happy + 40),
+          stress: Math.max(0, s.stress - 8),
+          actionIndex: s.actionIndex + 1,
+        };
+        s = pushLog(s, "Redeemed comps for hotel suite leisure (+40 happy).", "diegetic");
+        set({
+          ...s,
+          resultModal: {
+            title: "SUCCESS",
+            lines: ["Suite key clicks.", "+40 happy · −8 stress", `Comps left: ${s.compPoints}`],
+            cashDelta: 0,
           },
         });
       },

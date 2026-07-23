@@ -14,7 +14,10 @@ import { IconMail, IconSettings, IconStar, NavIcon } from "@/components/ui/Icons
 import { VEX_ART } from "@/components/ui/Visuals";
 import styles from "./AppChrome.module.css";
 
-const NAV = [
+const NAV: {
+  section: string;
+  links: { href: string; label: string; locked?: boolean }[];
+}[] = [
   {
     section: "AREAS",
     links: [
@@ -28,7 +31,7 @@ const NAV = [
     links: [
       { href: "/crimes", label: "Crimes" },
       { href: "/organized", label: "Organized" },
-      { href: "/wanted", label: "Wanted", locked: true },
+      { href: "/wanted", label: "Wanted" },
     ],
   },
   {
@@ -67,21 +70,21 @@ const NAV = [
     section: "COMBAT",
     links: [
       { href: "/attack", label: "Attack" },
-      { href: "/bounties", label: "Bounties", locked: true },
+      { href: "/bounties", label: "Bounties" },
     ],
   },
   {
     section: "LEISURE",
     links: [
       { href: "/casino", label: "Casino" },
-      { href: "/raceway", label: "Raceway", locked: true },
+      { href: "/raceway", label: "Raceway" },
     ],
   },
   {
     section: "SOCIAL",
     links: [
       { href: "/contacts", label: "Contacts" },
-      { href: "/faction", label: "Faction", locked: true },
+      { href: "/faction", label: "Faction" },
       { href: "/messages", label: "Messages" },
     ],
   },

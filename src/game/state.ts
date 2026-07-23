@@ -261,9 +261,16 @@ export type GameState = {
 
   /** Faction reputation -100..100 */
   factionRep: Record<string, number>;
+  /** Assists during current war week (resets when week flips) */
+  factionAssistsWar: number;
+  factionWarWeek: number;
   /** Posted NPC bounties */
   bounties: { npcId: string; payout: number; postedAt: number; expiresAt: number }[];
   raceWins: number;
+  /** Casino comp points → suite leisure */
+  compPoints: number;
+  casinoWinStreak: number;
+  casinoLossStreak: number;
 
   lastCrimeId: string | null;
   lastJobId: string | null;
@@ -409,8 +416,13 @@ export function createInitialState(partial?: Partial<GameState>): GameState {
       dock_covenant: 0,
       civic_veil: 0,
     },
+    factionAssistsWar: 0,
+    factionWarWeek: 0,
     bounties: [],
     raceWins: 0,
+    compPoints: 0,
+    casinoWinStreak: 0,
+    casinoLossStreak: 0,
     lastCrimeId: null,
     lastJobId: null,
     lastGigId: null,
@@ -493,6 +505,8 @@ export function normalizeState(s: GameState): GameState {
         ashcourt: s.power?.territory?.ashcourt ?? 0,
         spireyard: s.power?.territory?.spireyard ?? 0,
         oldcommons: s.power?.territory?.oldcommons ?? 0,
+        neonpier: s.power?.territory?.neonpier ?? 0,
+        redclinic: s.power?.territory?.redclinic ?? 0,
       },
       politicalRung: s.power?.politicalRung ?? 0,
       respect: s.power?.respect ?? 0,
@@ -500,5 +514,18 @@ export function normalizeState(s: GameState): GameState {
       businessRisk: s.power?.businessRisk === 1 ? 1 : 0,
       businessStaff: Math.max(0, Math.min(2, Math.floor(s.power?.businessStaff ?? 0))),
     },
+    factionRep: {
+      glass_syndicate: s.factionRep?.glass_syndicate ?? 0,
+      mill_iron: s.factionRep?.mill_iron ?? 0,
+      dock_covenant: s.factionRep?.dock_covenant ?? 0,
+      civic_veil: s.factionRep?.civic_veil ?? 0,
+    },
+    factionAssistsWar: s.factionAssistsWar ?? 0,
+    factionWarWeek: s.factionWarWeek ?? 0,
+    bounties: s.bounties ?? [],
+    raceWins: s.raceWins ?? 0,
+    compPoints: s.compPoints ?? 0,
+    casinoWinStreak: s.casinoWinStreak ?? 0,
+    casinoLossStreak: s.casinoLossStreak ?? 0,
   };
 }

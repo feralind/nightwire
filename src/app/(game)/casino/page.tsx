@@ -4,7 +4,6 @@ import { Module } from "@/components/ui/Module";
 import { GameButton } from "@/components/ui/GameButton";
 import { ArtTile, PageHero } from "@/components/ui/Visuals";
 import { formatMoney } from "@/game/formulas";
-import { unit01 } from "@/game/rng";
 import { useGame } from "@/store/gameStore";
 import hub from "../hub.module.css";
 
@@ -14,11 +13,8 @@ type TableDef = {
   blurb: string;
   image: string;
   bet: number;
-  winChance: number;
-  payout: number;
-  locked?: boolean;
-  badge: string;
   edge: string;
+  badge: string;
 };
 
 const TABLES: TableDef[] = [
@@ -28,8 +24,6 @@ const TABLES: TableDef[] = [
     blurb: "Three reels. Fast bleed. House keeps ~5%.",
     image: "/art/casino/slots.webp",
     bet: 50,
-    winChance: 0.46,
-    payout: 1.9,
     badge: "Live",
     edge: "EV −5%",
   },
@@ -39,8 +33,6 @@ const TABLES: TableDef[] = [
     blurb: "Single hand vs the house. Clean cash only.",
     image: "/art/casino/blackjack.webp",
     bet: 100,
-    winChance: 0.45,
-    payout: 1.9,
     badge: "Live",
     edge: "EV −5%",
   },
@@ -50,110 +42,55 @@ const TABLES: TableDef[] = [
     blurb: "Flip the next card. Honest table, still hungry.",
     image: "/art/casino/highlow.webp",
     bet: 75,
-    winChance: 0.48,
-    payout: 1.85,
     badge: "Live",
     edge: "EV −4%",
   },
   {
     id: "roulette",
     name: "Amber Roulette",
-    blurb: "Wheel opens after Hour-10. Watch the floor for now.",
+    blurb: "Wheel is live. Wider swing, published edge.",
     image: "/art/casino/roulette.webp",
     bet: 200,
-    winChance: 0.4,
-    payout: 2.2,
-    locked: true,
-    badge: "Soon",
-    edge: "Locked",
+    badge: "Live",
+    edge: "EV −12%",
   },
   {
     id: "poker",
     name: "Video Poker",
-    blurb: "Comp points later. Cabinet stays dark tonight.",
+    blurb: "Cabinet hums. Comps stack toward suite leisure.",
     image: "/art/casino/poker.webp",
     bet: 100,
-    winChance: 0.42,
-    payout: 2,
-    locked: true,
-    badge: "Soon",
-    edge: "Locked",
-  },
-  {
-    id: "vip",
-    name: "Cage Lounge",
-    blurb: "VIP tables need legitimacy + Commerce cert.",
-    image: "/art/ui/locked.webp",
-    bet: 500,
-    winChance: 0.4,
-    payout: 2,
-    locked: true,
-    badge: "VIP",
-    edge: "Locked",
+    badge: "Live",
+    edge: "EV −8%",
   },
 ];
 
 export default function CasinoPage() {
   const s = useGame();
-
-  function play(table: TableDef) {
-    if (table.locked || s.clean < table.bet) return;
-    if (s.hospitalUntil || s.jailUntil || s.travelUntil) return;
-    const win = unit01(s.seed, `casino_${table.id}`, s.actionIndex + 1) < table.winChance;
-    const payout = win ? Math.round(table.bet * table.payout) : 0;
-    const delta = payout - table.bet;
-    useGame.setState((st) => {
-      const next = {
-        ...st,
-        actionIndex: st.actionIndex + 1,
-        clean: st.clean - table.bet + payout,
-        stress: Math.min(100, st.stress + (win ? 0 : 2)),
-        happy: Math.min(st.happyMax, st.happy + (win ? 5 : -8)),
-      };
-      return {
-        ...next,
-        resultModal: {
-          title: win ? "SUCCESS" : "FAILED",
-          lines: [
-            win ? `${table.name} pays.` : `${table.name} — house wins.`,
-            `Bet ${formatMoney(table.bet)} · ${table.edge}`,
-            win ? `Payout ${formatMoney(payout)}` : "Chips stay on the felt.",
-          ],
-          cashDelta: delta,
-          repeatable: undefined,
-        },
-      };
-    });
-  }
+  const lossPerHour = Math.round(50 * 0.05 * 40); // rough slots pace flavor
 
   return (
     <div className={hub.wrap}>
       <PageHero
         title="Casino"
-        subtitle="Glassrow floor — published house edge, clean cash only. Comp later."
+        subtitle="Glassrow floor — published house edge, clean cash only. Comps → suite leisure."
         tone="casino"
         image="/art/casino/lobby.webp"
         tall
       >
         <div className={hub.chipRow}>
           <span className={hub.chip}>Clean {formatMoney(s.clean)}</span>
+          <span className={hub.chip}>Comps {s.compPoints}</span>
           <span className={hub.chip}>Stress {Math.floor(s.stress)}</span>
-          <span className={hub.chip}>Honest EV shown</span>
+          <span className={hub.chip}>~${lossPerHour}/hr expected (slots pace)</span>
         </div>
       </PageHero>
 
       <div className={hub.grid2}>
-        <Module title="Floor" footer="Live tables take clean · locked tiles are atmosphere + future depth">
+        <Module title="Floor" footer="Live tables take clean · Bookkeeping (cf1) tiny flavor perk">
           <div className={hub.grid}>
             {TABLES.map((t) => (
-              <ArtTile
-                key={t.id}
-                image={t.image}
-                title={t.name}
-                subtitle={t.blurb}
-                locked={t.locked}
-                badge={t.badge}
-              >
+              <ArtTile key={t.id} image={t.image} title={t.name} subtitle={t.blurb} badge={t.badge}>
                 <div className={hub.statRow}>
                   <span>Bet</span>
                   <strong className="tabular">{formatMoney(t.bet)}</strong>
@@ -164,10 +101,10 @@ export default function CasinoPage() {
                 </div>
                 <GameButton
                   variant="danger"
-                  disabled={!!t.locked || s.clean < t.bet}
-                  onClick={() => play(t)}
+                  disabled={s.clean < t.bet}
+                  onClick={() => s.playCasino(t.id)}
                 >
-                  {t.locked ? "Coming online" : `Play (${formatMoney(t.bet)})`}
+                  Play ({formatMoney(t.bet)})
                 </GameButton>
               </ArtTile>
             ))}
@@ -178,21 +115,25 @@ export default function CasinoPage() {
           <div className={hub.panel}>
             <h2 className={hub.panelTitle}>Cage & comps</h2>
             <p className={hub.sub}>
-              Comp points and hotel suite leisure unlock after Hour-10. Loss streaks raise stress; win streaks can draw
-              heat flavor later.
+              Comp points buy hotel suite leisure. Loss streaks raise stress; long win streaks can draw heat.
             </p>
             <div className={hub.statRow}>
               <span>Comp points</span>
-              <strong className="tabular">0</strong>
+              <strong className="tabular">{s.compPoints}</strong>
             </div>
             <div className={hub.statRow}>
-              <span>Tonight&apos;s edge</span>
-              <strong>~5% house</strong>
+              <span>Win / loss streak</span>
+              <strong className="tabular">
+                {s.casinoWinStreak} / {s.casinoLossStreak}
+              </strong>
             </div>
             <div className={hub.statRow}>
-              <span>Ledger</span>
-              <strong>Clean only</strong>
+              <span>Suite redeem</span>
+              <strong>100 comps → +40 happy</strong>
             </div>
+            <GameButton disabled={s.compPoints < 100} onClick={() => s.redeemComps()}>
+              Redeem suite
+            </GameButton>
           </div>
           <div
             className={hub.panel}

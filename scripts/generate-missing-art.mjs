@@ -641,6 +641,44 @@ async function main() {
     results.push(await writeWebp(`gigs/${id}.webp`, svg, 1024, 1024));
   }
 
+  // V2/V3 gig pack expand
+  const MORE_GIGS = {
+    bike_courier: "glassrow",
+    market_stall: "oldcommons",
+    trash_route: "millstone",
+    neon_flyer: "neonpier",
+    ward_errands: "clinic",
+    spire_reception: "spireyard",
+    ledger_audit: "spireyard",
+    container_count: "docksreach",
+    lab_cleanup: "clinic",
+    parking_patrol: "civic",
+    moving_crew: "millstone",
+    food_runner: "glassrow",
+    library_shelve: "civic",
+    ferry_ticket: "docksreach",
+    event_setup: "spireyard",
+    blood_drive: "clinic",
+    yard_sweep: "millstone",
+    translate_desk: "glassrow",
+    cold_storage: "docksreach",
+    shelter_shift: "oldcommons",
+    press_run: "civic",
+    tool_lend: "millstone",
+    museum_rope: "glassrow",
+    ambulance_stock: "clinic",
+    invoice_match: "spireyard",
+  };
+  for (const [id, palKey] of Object.entries(MORE_GIGS)) {
+    const pal = PAL[palKey] || PAL.civic;
+    const svg = interiorSvg(1024, 1024, pal, {
+      seed: id.length * 7 + 11,
+      shelves: id.includes("library") || id.includes("tool") || id.includes("ledger"),
+      object: `<rect x="340" y="420" width="160" height="18" fill="#1a1c22"/><rect x="400" y="360" width="40" height="55" fill="#12141a" stroke="${pal.glow}" stroke-width="1"/>`,
+    });
+    results.push(await writeWebp(`gigs/${id}.webp`, svg, 1024, 1024));
+  }
+
   // Heist hero + per-board thumbs
   {
     const pal = PAL.heavy;

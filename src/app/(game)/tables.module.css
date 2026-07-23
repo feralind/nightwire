@@ -56,6 +56,11 @@
   margin: 0 0 8px;
 }
 
+.num {
+  font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono), ui-monospace, monospace;
+}
+
 .grid2 {
   display: grid;
   grid-template-columns: 1fr 1fr;

@@ -5,10 +5,11 @@ import { transcriptPerkSum } from "./careers";
 import { GIGS_WEEKLY_CAP, canDoGig, computeGigPay, gigDoReasons, gigPayBonusPct } from "./gigs";
 import { createInitialState } from "./state";
 
-describe("gigs V0", () => {
-  it("ships ten short legal contracts across districts", () => {
-    expect(GIGS.length).toBe(10);
-    expect(new Set(GIGS.flatMap((g) => g.districtBias)).size).toBeGreaterThanOrEqual(4);
+describe("gigs V2 scale", () => {
+  it("ships ≥24 short legal contracts across districts", () => {
+    expect(GIGS.length).toBeGreaterThanOrEqual(24);
+    expect(GIGS.length).toBeLessThanOrEqual(36);
+    expect(new Set(GIGS.flatMap((g) => g.districtBias)).size).toBeGreaterThanOrEqual(6);
   });
 
   it("allows open gigs while unemployed", () => {

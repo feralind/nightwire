@@ -2,10 +2,19 @@ import { describe, expect, it } from "vitest";
 import { CRIMES, DISTRICTS, JOBS } from "@/content/catalog";
 
 describe("v1 content scale", () => {
-  it("ships 6 districts", () => {
-    expect(DISTRICTS).toHaveLength(6);
+  it("ships 8 districts", () => {
+    expect(DISTRICTS).toHaveLength(8);
     expect(DISTRICTS.map((d) => d.id).sort()).toEqual(
-      ["ashcourt", "docksreach", "glassrow", "millstone", "oldcommons", "spireyard"].sort()
+      [
+        "ashcourt",
+        "docksreach",
+        "glassrow",
+        "millstone",
+        "neonpier",
+        "oldcommons",
+        "redclinic",
+        "spireyard",
+      ].sort()
     );
   });
 
