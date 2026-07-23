@@ -1,7 +1,7 @@
 .backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.55);
+  background: var(--modal-backdrop);
   z-index: var(--z-modal);
   display: flex;
   align-items: center;
@@ -11,10 +11,11 @@
 .modal {
   width: 420px;
   max-width: calc(100vw - 24px);
-  border: 1px solid #333;
-  border-radius: var(--r1);
+  border: 1px solid var(--modal-border);
+  border-radius: var(--radius);
   background: var(--bg-panel);
   padding: var(--s4);
+  box-shadow: var(--modal-shadow);
   animation: enter 120ms ease-out;
 }
 

@@ -14,6 +14,7 @@ export default function PlannerPage() {
       <p>Queues Attempt/Shift repeats. Costs deducted per action.</p>
       <input type="number" min={1} max={20} value={n} onChange={(e) => setN(Number(e.target.value))} />
       <GameButton
+        variant="danger"
         onClick={() => {
           const id = s.lastCrimeId;
           if (!id) return;

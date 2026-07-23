@@ -82,6 +82,10 @@ export function awardConditionMet(id: string, s: GameState): boolean {
       return s.completedCourses.includes("hl1");
     case "interest_drip":
       return s.lifetime.interestEarned >= 50;
+    case "first_board":
+      return (s.lifetime.heistsCompleted ?? 0) >= 1;
+    case "board_collector":
+      return (s.lifetime.heistsCompleted ?? 0) >= 3;
     default:
       return false;
   }
@@ -147,6 +151,10 @@ export function awardHint(id: string): string {
       return "Finish Dock Safety";
     case "interest_drip":
       return "Earn $50 bank interest";
+    case "first_board":
+      return "Complete an organized heist";
+    case "board_collector":
+      return "Complete 3 organized heists";
     default:
       return "Hidden";
   }

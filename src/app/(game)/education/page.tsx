@@ -87,7 +87,7 @@ export default function EducationPage() {
                 <div style={{ width: `${pct}%`, height: "100%", background: "var(--accent-rail)" }} />
               </div>
               <p className={hub.sub}>Perks: {coursePerkLabels(active).join(" · ") || "—"}</p>
-              <GameButton variant="ghost" onClick={() => s.dropCourse()}>
+              <GameButton variant="secondary" onClick={() => s.dropCourse()}>
                 Drop course (fee kept)
               </GameButton>
             </div>
@@ -139,7 +139,7 @@ export default function EducationPage() {
                 style={{
                   border: "1px solid var(--border)",
                   background: "linear-gradient(165deg,#222228,var(--bg-panel))",
-                  borderRadius: "var(--r1)",
+                  borderRadius: "var(--radius)",
                   overflow: "hidden",
                   display: "flex",
                   flexDirection: "column",
@@ -194,7 +194,7 @@ export default function EducationPage() {
                         Enroll clean
                       </GameButton>
                       <GameButton
-                        variant="ghost"
+                        variant="secondary"
                         disabled={!canEnrollCourse(c, s, true)}
                         onClick={() => s.enrollCourse(c.id, true)}
                       >

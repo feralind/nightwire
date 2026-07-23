@@ -1,6 +1,21 @@
-import type { DistrictId } from "@/game/types";
+import type { DistrictId, HeistExecutePhase, HeistRank } from "@/game/types";
 
 export type InvestigationStage = 0 | 1 | 2 | 3 | 4;
+
+/** Per-board progress for organized heist prep */
+export type PrepBoardState = {
+  completedStageIds: string[];
+  stagedItems: { itemId: string; qty: number }[];
+  sunkStreet: number;
+  sunkClean: number;
+  /** Window stage landed during night hours */
+  windowNight: boolean;
+  /** Live multi-roll execute phase, or null when not executing */
+  executePhase: HeistExecutePhase | null;
+  cooldownUntil: number | null;
+  completions: number;
+  bestRank: HeistRank | null;
+};
 
 export type LogEntry = {
   id: number;
@@ -79,6 +94,7 @@ export type LifetimeStats = {
   contactUses: number;
   favorSpent: number;
   tipsBought: number;
+  heistsCompleted: number;
 };
 
 /** Per-contact dossier progress */
@@ -193,6 +209,9 @@ export type GameState = {
   /** Active intel tips from contacts */
   contactTips: ContactTip[];
 
+  /** Organized heist prep boards — keyed by heist id */
+  prepBoards: Record<string, PrepBoardState>;
+
   ritual: { text: string; current: number; target: number; kind: string; rewardClaimed: boolean } | null;
   /** Calendar day the current ritual was minted */
   ritualDay: number;
@@ -237,6 +256,7 @@ export function emptyLifetime(district: DistrictId = "glassrow"): LifetimeStats 
     contactUses: 0,
     favorSpent: 0,
     tipsBought: 0,
+    heistsCompleted: 0,
   };
 }
 
@@ -312,6 +332,7 @@ export function createInitialState(partial?: Partial<GameState>): GameState {
     rivalPressureAt: 0,
     contacts: {},
     contactTips: [],
+    prepBoards: {},
     ritual: null,
     ritualDay: 0,
     ritualBonus: null,
@@ -358,6 +379,7 @@ export function normalizeState(s: GameState): GameState {
     favorSpent: s.lifetime?.favorSpent ?? 0,
     tipsBought: s.lifetime?.tipsBought ?? 0,
     gigsDone: s.lifetime?.gigsDone ?? 0,
+    heistsCompleted: s.lifetime?.heistsCompleted ?? 0,
   };
   // Drop legacy stub property ids that aren't in the catalog
   const ownedProperties = (s.ownedProperties ?? []).filter((id) => !id.startsWith("prop_"));
@@ -381,6 +403,7 @@ export function normalizeState(s: GameState): GameState {
     rivalPressureAt: s.rivalPressureAt ?? 0,
     contacts: s.contacts ?? {},
     contactTips: s.contactTips ?? [],
+    prepBoards: s.prepBoards ?? {},
     power: {
       territory: {
         glassrow: s.power?.territory?.glassrow ?? 0,

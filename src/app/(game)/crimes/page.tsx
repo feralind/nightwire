@@ -101,6 +101,7 @@ export default function CrimesPage() {
                     <OddsBreakdown odds={view.odds} ev={view.ev} modifiers={view.modifiers} compact />
                   )}
                   <GameButton
+                    variant="danger"
                     disabled={view.locked || nerve < c.nerve}
                     onClick={() => attemptCrime(c.id)}
                     title={`EV ${view.ev.toFixed(0)} · ${(view.odds * 100).toFixed(1)}%`}

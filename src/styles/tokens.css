@@ -68,10 +68,44 @@
   /* Nav action badge */
   --nav-badge: #4a9eff;
 
-  /* Radius */
+  /* Radius — one shared value for buttons, cards, panels, modals */
+  --radius: 3px;
   --r0: 0;
-  --r1: 2px;
-  --r2: 4px;
+  --r1: var(--radius);
+  --r2: 6px;
+
+  /* Buttons — flat gunmetal primary (no kit blue); flat warm danger */
+  --btn-pad-x: var(--s3);
+  --btn-primary-fill: #45454e;
+  --btn-primary-hover: #3a3a42;
+  --btn-primary-active: #303038;
+  --btn-primary-border: #54545e;
+  --btn-primary-text: #f2f2f4;
+  --btn-primary-inset: rgba(0, 0, 0, 0.42);
+  --btn-danger-fill: #b0552c;
+  --btn-danger-hover: #984825;
+  --btn-danger-active: #803c1f;
+  --btn-danger-border: #9a4a26;
+  --btn-danger-text: #fff4ea;
+  --btn-danger-inset: rgba(0, 0, 0, 0.42);
+  --btn-disabled-fill: #3a3a40;
+  --btn-disabled-border: #44444c;
+  --btn-disabled-text: #7a7a82;
+  --btn-disabled-opacity: 0.4;
+
+  /* Form fields — dark chrome, never browser white */
+  --field-bg: var(--bg-inset);
+  --field-border: var(--border-strong);
+  --field-text: var(--text);
+  --field-focus: var(--accent-amber);
+
+  /* Modals — float above page panels */
+  --modal-backdrop: rgba(0, 0, 0, 0.72);
+  --modal-shadow:
+    0 16px 48px rgba(0, 0, 0, 0.65),
+    0 0 0 1px rgba(74, 158, 255, 0.22),
+    0 0 24px rgba(74, 158, 255, 0.08);
+  --modal-border: #4a5568;
 
   /* Layout */
   --max-width: 1200px;
@@ -125,6 +159,57 @@ a:hover {
 button {
   font-family: inherit;
   font-size: var(--font);
+}
+
+/* Shared dark form controls — bank/planner/settings number fields */
+input[type="text"],
+input[type="number"],
+input[type="search"],
+input[type="email"],
+input[type="password"],
+input:not([type]),
+select,
+textarea {
+  background: var(--field-bg);
+  border: 1px solid var(--field-border);
+  border-radius: var(--radius);
+  color: var(--field-text);
+  font-family: inherit;
+  font-size: var(--font);
+  height: var(--row);
+  padding: 0 var(--s2);
+  color-scheme: dark;
+}
+
+textarea {
+  height: auto;
+  min-height: calc(var(--row) * 2);
+  padding: var(--s2);
+  resize: vertical;
+}
+
+input[type="text"]:focus-visible,
+input[type="number"]:focus-visible,
+input[type="search"]:focus-visible,
+input[type="email"]:focus-visible,
+input[type="password"]:focus-visible,
+input:not([type]):focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 1px solid var(--field-focus);
+  outline-offset: 1px;
+  border-color: var(--field-focus);
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 
 .tabular {

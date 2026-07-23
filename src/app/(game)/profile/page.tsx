@@ -86,11 +86,11 @@ export default function ProfilePage() {
           <GameButton disabled={s.investigation <= 0 || layingLow} onClick={() => s.investigationCounterplay("laylow")}>
             Lay low (4h)
           </GameButton>
-          <GameButton disabled={s.investigation <= 0} onClick={() => s.investigationCounterplay("bribe")}>
+          <GameButton variant="danger" disabled={s.investigation <= 0} onClick={() => s.investigationCounterplay("bribe")}>
             Risky bribe
           </GameButton>
           <Link href="/travel">
-            <GameButton disabled={s.investigation <= 0} variant="ghost" onClick={() => s.investigationCounterplay("leave")}>
+            <GameButton disabled={s.investigation <= 0} variant="secondary" onClick={() => s.investigationCounterplay("leave")}>
               Leave district → Travel
             </GameButton>
           </Link>

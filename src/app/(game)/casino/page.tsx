@@ -163,6 +163,7 @@ export default function CasinoPage() {
                   <strong>{t.edge}</strong>
                 </div>
                 <GameButton
+                  variant="danger"
                   disabled={!!t.locked || s.clean < t.bet}
                   onClick={() => play(t)}
                 >

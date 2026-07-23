@@ -37,7 +37,7 @@ export function AwardModal() {
             position: "relative",
             height: 72,
             margin: "-4px -4px 10px",
-            borderRadius: "var(--r1)",
+            borderRadius: "var(--radius)",
             overflow: "hidden",
             background: "center/cover no-repeat url(/art/awards/hero.webp), #151518",
           }}

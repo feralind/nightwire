@@ -65,7 +65,7 @@ export default function HospitalPage() {
                   Pay medical
                 </GameButton>
                 <GameButton
-                  variant="ghost"
+                  variant="secondary"
                   disabled={!s.inventory.some((i) => i.itemId === "street_meds" && i.qty > 0)}
                   onClick={() => s.useItem("street_meds")}
                 >

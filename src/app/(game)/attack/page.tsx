@@ -118,7 +118,7 @@ export default function AttackPage() {
                       <strong className="tabular">{npc.energyCost}</strong>
                     </div>
                   </div>
-                  <GameButton disabled={!can} onClick={() => s.attackNpc(npc.id)}>
+                  <GameButton variant="danger" disabled={!can} onClick={() => s.attackNpc(npc.id)}>
                     Attack
                   </GameButton>
                 </div>

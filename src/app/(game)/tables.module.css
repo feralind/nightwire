@@ -66,4 +66,10 @@
   border: 1px solid var(--border);
   background: var(--bg-inset);
   padding: 8px;
+  border-radius: var(--radius);
+}
+
+.field {
+  width: 140px;
+  margin: 0 8px 8px 0;
 }

@@ -101,7 +101,7 @@ export default function BazaarPage() {
                     tone="pos"
                   />
                   <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 4 }}>
-                    <GameButton variant="ghost" onClick={() => s.bazaarSell(i.itemId)}>
+                    <GameButton variant="secondary" onClick={() => s.bazaarSell(i.itemId)}>
                       Sell one
                     </GameButton>
                   </div>

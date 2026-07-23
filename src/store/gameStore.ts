@@ -74,9 +74,10 @@ import { applyCallRitual, applyRitualCashBonus, ensureDailyRitual } from "@/game
 import { maybeApplyRivalEvents } from "@/game/rival";
 import { pickWeighted, rollD10000, unit01 } from "@/game/rng";
 import { planStreetShopBuy } from "@/game/shops";
+import { applyExecuteChoice, applyPrepStage } from "@/game/heists";
 import { createInitialState, normalizeState, type AwayModalState, type GameState, type ResultModalState } from "@/game/state";
 import { applyCatchUp } from "@/game/tick";
-import type { AwardDef, ContactActionId, DistrictId } from "@/game/types";
+import type { AwardDef, ContactActionId, DistrictId, HeistExecuteChoice } from "@/game/types";
 
 function actionBlocked(s: GameState, now = Date.now()): boolean {
   if (s.hospitalUntil && now < s.hospitalUntil) return true;
@@ -131,6 +132,8 @@ type Actions = {
   buyPoliticalRung: () => void;
   buyRespectFlex: (flexId: string, useStreet?: boolean) => void;
   buyBusinessTier: () => void;
+  runHeistPrep: (heistId: string) => void;
+  executeHeist: (heistId: string, choice: HeistExecuteChoice) => void;
   exportSave: () => string;
   importSave: (json: string) => void;
   resetSave: () => void;
@@ -1508,6 +1511,54 @@ export const useGame = create<GameState & UIState & Actions>()(
         s = pushLog(s, `Business empire: ${next.name}`, "diegetic");
         s = updateIdentity(s);
         set(s);
+      },
+
+      runHeistPrep: (heistId) => {
+        let s: GameState = normalizeState(get());
+        if (!s.created) return;
+        if (actionBlocked(s)) return;
+        const result = applyPrepStage(s, heistId);
+        if (!result) return;
+        s = result.state;
+        s = pushLog(s, `${result.title}: ${result.lines[0] ?? heistId}`, "result");
+        s = maybeRival(s);
+        s = updateIdentity(s);
+        const awardPass = applyAwardPass(s);
+        s = awardPass.state;
+        set({
+          ...s,
+          awardModal: awardPass.unlocked.length ? awardModalPayload(awardPass.unlocked) : get().awardModal,
+          resultModal: {
+            title: result.title,
+            lines: [...result.lines, ...awardPass.unlocked.map((a) => `Award: ${a.name}`)],
+            cashDelta: result.cashDelta,
+            ritual: result.ritual,
+          },
+        });
+      },
+
+      executeHeist: (heistId, choice) => {
+        let s: GameState = normalizeState(get());
+        if (!s.created) return;
+        if (actionBlocked(s) && choice !== "abort") return;
+        const result = applyExecuteChoice(s, heistId, choice);
+        if (!result) return;
+        s = result.state;
+        s = pushLog(s, `${result.title}: ${result.lines[0] ?? heistId}`, "result");
+        s = maybeRival(s);
+        s = updateIdentity(s);
+        const awardPass = applyAwardPass(s);
+        s = awardPass.state;
+        set({
+          ...s,
+          awardModal: awardPass.unlocked.length ? awardModalPayload(awardPass.unlocked) : get().awardModal,
+          resultModal: {
+            title: result.title,
+            lines: [...result.lines, ...awardPass.unlocked.map((a) => `Award: ${a.name}`)],
+            cashDelta: result.cashDelta,
+            ritual: result.ritual,
+          },
+        });
       },
 
       exportSave: () => {

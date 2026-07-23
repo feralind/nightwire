@@ -132,7 +132,7 @@ export default function JobsPage() {
                 <GameButton disabled={!canWork} onClick={() => s.workShift()}>
                   Work shift ({current.energy} energy)
                 </GameButton>
-                <GameButton variant="ghost" onClick={() => s.quitJob()}>
+                <GameButton variant="secondary" onClick={() => s.quitJob()}>
                   Quit
                 </GameButton>
               </p>
@@ -201,7 +201,7 @@ export default function JobsPage() {
                     {j.rank === 1 && locked && !isCurrent ? <RequirementsBox reasons={applyReasons} /> : null}
                     {j.rank === 1 ? (
                       <GameButton
-                        variant="ghost"
+                        variant="secondary"
                         disabled={!canApplyJob(j, s)}
                         onClick={() => s.applyJob(j.id)}
                       >

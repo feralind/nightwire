@@ -11,6 +11,7 @@ import type {
 export { DISTRICTS } from "@/content/districts";
 export { CRIMES } from "@/content/crimes";
 export { JOBS } from "@/content/jobs";
+export { HEISTS, getHeist } from "@/content/heists";
 
 import { CRIMES } from "@/content/crimes";
 import { DISTRICTS } from "@/content/districts";
@@ -686,6 +687,8 @@ export const AWARDS: AwardDef[] = [
   { id: "vex_noticed", name: "Vex Noticed", blurb: "Rival ink in the paper. You’re on their board.", category: "story" },
   { id: "first_favor", name: "First Favor", blurb: "Someone on the wire answered when you asked.", category: "story" },
   { id: "tip_bought", name: "Warm Tip", blurb: "Paid for intel that still smelled like the street.", category: "story" },
+  { id: "first_board", name: "First Board", blurb: "Finished an organized prep and walked out with the take.", category: "crime" },
+  { id: "board_collector", name: "Board Collector", blurb: "Three organized ops in the bag.", category: "crime" },
 ];
 
 /** V0 contacts — unlock by play; tips/favors matter to odds, heat, stress */

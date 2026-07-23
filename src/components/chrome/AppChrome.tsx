@@ -27,7 +27,7 @@ const NAV = [
     section: "CRIME",
     links: [
       { href: "/crimes", label: "Crimes" },
-      { href: "/organized", label: "Organized", locked: true },
+      { href: "/organized", label: "Organized" },
       { href: "/wanted", label: "Wanted", locked: true },
     ],
   },
@@ -333,7 +333,7 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
                   : `${Math.floor(s.ritual.current)}/${s.ritual.target}`}
               </span>
               <GameButton
-                variant="ghost"
+                variant="secondary"
                 disabled={s.ritual.rewardClaimed}
                 onClick={() => s.callRitual()}
                 title={

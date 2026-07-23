@@ -88,7 +88,7 @@ export default function ShopsPage() {
                   <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
                     <GameButton onClick={() => s.buyItem(item.id, false)}>Buy clean</GameButton>
                     {!elite && (
-                      <GameButton variant="ghost" disabled={streetBlocked} onClick={() => s.buyItem(item.id, true)}>
+                      <GameButton variant="secondary" disabled={streetBlocked} onClick={() => s.buyItem(item.id, true)}>
                         Buy street
                       </GameButton>
                     )}

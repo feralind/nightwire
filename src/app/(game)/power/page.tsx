@@ -112,7 +112,7 @@ export default function PowerPage() {
                   <td className="tabular">{pct >= 100 ? "—" : formatMoney(cost)}</td>
                   <td>
                     <GameButton
-                      variant="ghost"
+                      variant="secondary"
                       disabled={!can}
                       onClick={() => s.investTerritory(d.id)}
                     >
@@ -220,7 +220,7 @@ export default function PowerPage() {
                       Street
                     </GameButton>{" "}
                     <GameButton
-                      variant="ghost"
+                      variant="secondary"
                       disabled={s.clean < cleanPay}
                       onClick={() => s.buyRespectFlex(flex.id, false)}
                     >

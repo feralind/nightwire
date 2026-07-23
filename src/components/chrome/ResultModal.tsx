@@ -81,7 +81,7 @@ export function ResultModal() {
           </GameButton>
           {modal.repeatable && (
             <GameButton
-              variant="ghost"
+              variant="secondary"
               onClick={() => {
                 const rep = modal.repeatable;
                 dismiss();

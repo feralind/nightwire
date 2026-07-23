@@ -73,17 +73,17 @@ export default function BankPage() {
       <Module title="Transfer">
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
           {presets.map((p) => (
-            <GameButton key={p} variant="ghost" onClick={() => setAmt(p)}>
+            <GameButton key={p} variant="secondary" onClick={() => setAmt(p)}>
               {formatMoney(p)}
             </GameButton>
           ))}
-          <GameButton variant="ghost" onClick={() => setAmt(s.clean)} disabled={s.clean <= 0}>
+          <GameButton variant="secondary" onClick={() => setAmt(s.clean)} disabled={s.clean <= 0}>
             All clean
           </GameButton>
-          <GameButton variant="ghost" onClick={() => setAmt(s.street)} disabled={s.street <= 0}>
+          <GameButton variant="secondary" onClick={() => setAmt(s.street)} disabled={s.street <= 0}>
             All street
           </GameButton>
-          <GameButton variant="ghost" onClick={() => setAmt(s.bank)} disabled={s.bank <= 0}>
+          <GameButton variant="secondary" onClick={() => setAmt(s.bank)} disabled={s.bank <= 0}>
             All bank
           </GameButton>
         </div>
@@ -91,11 +91,11 @@ export default function BankPage() {
           Amount
         </label>
         <input
+          className={styles.field}
           type="number"
           min={0}
           value={amt}
           onChange={(e) => setAmt(Number(e.target.value))}
-          style={{ width: 140, marginRight: 8, marginBottom: 8 }}
         />
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
           <GameButton disabled={amt <= 0 || s.clean < amt} onClick={() => s.bankDeposit(amt, "clean")}>
@@ -104,12 +104,12 @@ export default function BankPage() {
           <GameButton disabled={amt <= 0 || s.street < amt} onClick={() => s.bankDeposit(amt, "street")}>
             Deposit street → bank (−{formatMoney(streetFee)} fee → {formatMoney(streetNet)})
           </GameButton>
-          <GameButton variant="ghost" disabled={amt <= 0 || s.bank < amt} onClick={() => s.bankWithdraw(amt)}>
+          <GameButton disabled={amt <= 0 || s.bank < amt} onClick={() => s.bankWithdraw(amt)}>
             Withdraw to clean
           </GameButton>
         </div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-          <GameButton variant="ghost" disabled={amt <= 0 || s.street < amt} onClick={() => s.cleanMoney(amt)}>
+          <GameButton variant="secondary" disabled={amt <= 0 || s.street < amt} onClick={() => s.cleanMoney(amt)}>
             Laundry street→clean (−{formatMoney(cleanFee)} / {Math.round(laundryRate * 100)}%)
           </GameButton>
         </div>

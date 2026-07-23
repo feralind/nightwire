@@ -68,10 +68,10 @@ export default function InventoryPage() {
                     <InfoRow label="Notes" value={item?.description ?? "—"} />
                   </InfoRowBlock>
                   <div className={styles.itemActions}>
-                    <GameButton variant="ghost" onClick={() => s.equipItem(i.itemId)}>
+                    <GameButton variant="primary" onClick={() => s.equipItem(i.itemId)}>
                       {i.equipped ? "Unequip" : "Equip"}
                     </GameButton>
-                    <GameButton variant="ghost" onClick={() => s.useItem(i.itemId)}>
+                    <GameButton variant="secondary" onClick={() => s.useItem(i.itemId)}>
                       Use
                     </GameButton>
                   </div>

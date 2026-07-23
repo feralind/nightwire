@@ -182,3 +182,48 @@ export type ContactDef = {
     streetCost?: number;
   }[];
 };
+
+/** Organized crime prep board — multi-step, not a single Attempt */
+export type HeistStageKind = "intel" | "crew" | "kit" | "window" | "execute";
+
+export type HeistRisk = "moderate" | "high" | "extreme";
+
+export type HeistStageDef = {
+  id: string;
+  kind: HeistStageKind;
+  name: string;
+  blurb: string;
+  energy?: number;
+  nerve?: number;
+  streetCost?: number;
+  cleanCost?: number;
+  /** Consumed from inventory into staged prep (can be lost on fail) */
+  requireItems?: { itemId: string; qty: number }[];
+  /** Prep-step success chance (0–1). Execute uses phase rolls instead. */
+  successChance?: number;
+  heatOnFail?: number;
+};
+
+export type HeistDef = {
+  id: string;
+  name: string;
+  blurb: string;
+  district: DistrictId;
+  risk: HeistRisk;
+  requiresLevel?: number;
+  requiresCourse?: string;
+  /** Soft-house / staging property gate */
+  requiresProperty?: string;
+  payoutMin: number;
+  payoutMax: number;
+  xp: number;
+  heatOnSuccess: number;
+  heatOnFail: number;
+  /** Hours before the board can be run again after completion or hard fail */
+  cooldownHours: number;
+  stages: HeistStageDef[];
+};
+
+export type HeistExecutePhase = "approach" | "breach" | "extract";
+export type HeistExecuteChoice = "push" | "abort" | "sacrifice";
+export type HeistRank = "C" | "B" | "A" | "S";

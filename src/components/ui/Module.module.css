@@ -1,6 +1,8 @@
 .module {
   border: 1px solid var(--border);
+  border-radius: var(--radius);
   background: var(--bg-panel);
+  overflow: hidden;
 }
 
 .header {

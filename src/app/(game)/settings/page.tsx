@@ -12,11 +12,12 @@ export default function SettingsPage() {
     <Module title="Settings">
       <p>
         Density:{" "}
-        <GameButton onClick={() => s.setDensity("classic")}>Classic</GameButton>{" "}
-        <GameButton onClick={() => s.setDensity("comfortable")}>Comfortable</GameButton>
+        <GameButton variant="secondary" onClick={() => s.setDensity("classic")}>Classic</GameButton>{" "}
+        <GameButton variant="secondary" onClick={() => s.setDensity("comfortable")}>Comfortable</GameButton>
       </p>
       <p>
         <GameButton
+          variant="secondary"
           onClick={() => {
             const json = s.exportSave();
             void navigator.clipboard.writeText(json);
@@ -35,7 +36,7 @@ export default function SettingsPage() {
         rows={8}
         style={{ width: "100%", background: "var(--bg-inset)", color: "var(--text)", border: "1px solid var(--border)" }}
       />
-      <GameButton onClick={() => s.importSave(draft)}>Import save</GameButton>
+      <GameButton variant="secondary" onClick={() => s.importSave(draft)}>Import save</GameButton>
     </Module>
   );
 }
