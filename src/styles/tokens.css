@@ -131,6 +131,118 @@
   --meta: 12px;
 }
 
+/* High contrast — stronger borders, brighter text, punchier vitals */
+[data-contrast="high"] {
+  --bg-site: #050506;
+  --bg-panel: #121218;
+  --bg-panel-2: #1a1a22;
+  --bg-inset: #0a0a0e;
+  --bg-hover: #2e2e3a;
+  --bg-active: #26262e;
+  --border: #7a7a88;
+  --border-strong: #a8a8b4;
+  --accent-rail: #6eb6ff;
+  --accent-amber: #ffd24a;
+  --accent-cyan: #4ecfe0;
+  --text: #ffffff;
+  --text-dim: #c4c4cc;
+  --text-link: #9eccff;
+  --text-warn: #ffe066;
+  --life: #ff4d4d;
+  --energy: #5b9fff;
+  --nerve: #3dff7a;
+  --happy: #ffd21a;
+  --money: #5dff9a;
+  --danger: #ff6b6b;
+  --success: #5dff9a;
+  --field-focus: #ffd24a;
+  --btn-primary-border: #8a8a96;
+  --btn-primary-text: #ffffff;
+  --modal-border: #8a96a8;
+}
+
+/*
+ * Colorblind packs remapped for distinct vitals/status (not clinical simulation).
+ * Life / danger / nerve / money / energy / happy stay semantically named.
+ */
+[data-colorblind="protanopia"] {
+  /* Red-weak: avoid red/green pairs — life→magenta, danger→amber, nerve→cyan */
+  --life: #d946ef;
+  --life-deep: #86198f;
+  --danger: #f59e0b;
+  --nerve: #22d3ee;
+  --nerve-deep: #155e75;
+  --money: #38bdf8;
+  --success: #38bdf8;
+  --accent-amber: #fbbf24;
+  --stat-str: #e879f9;
+  --stat-def: #22d3ee;
+  --text-warn: #fbbf24;
+  --btn-danger-fill: #c2410c;
+  --btn-danger-hover: #9a3412;
+  --btn-danger-active: #7c2d12;
+  --btn-danger-border: #ea580c;
+}
+
+[data-colorblind="deuteranopia"] {
+  /* Green-weak: nerve/money off green → blue/amber; life stays warm rose */
+  --life: #f43f5e;
+  --life-deep: #9f1239;
+  --danger: #fb7185;
+  --nerve: #38bdf8;
+  --nerve-deep: #075985;
+  --money: #fbbf24;
+  --success: #fbbf24;
+  --happy: #a78bfa;
+  --happy-deep: #5b21b6;
+  --stat-def: #38bdf8;
+  --stat-dex: #fbbf24;
+  --accent-cyan: #38bdf8;
+}
+
+[data-colorblind="tritanopia"] {
+  /* Blue-yellow weak: energy/happy off blue/yellow → rose/teal */
+  --energy: #f472b6;
+  --energy-deep: #9d174d;
+  --happy: #2dd4bf;
+  --happy-deep: #115e59;
+  --accent-rail: #fb7185;
+  --accent-amber: #fb923c;
+  --accent-cyan: #14b8a6;
+  --text-link: #f9a8d4;
+  --text-warn: #fb923c;
+  --hospital: #f9a8d4;
+  --jail: #fb923c;
+  --stat-spd: #f472b6;
+  --stat-dex: #2dd4bf;
+  --field-focus: #fb923c;
+}
+
+/* High contrast + colorblind: keep pack hues, boost luminance slightly */
+[data-contrast="high"][data-colorblind="protanopia"] {
+  --life: #e879f9;
+  --danger: #fbbf24;
+  --nerve: #67e8f9;
+  --money: #7dd3fc;
+  --success: #7dd3fc;
+}
+
+[data-contrast="high"][data-colorblind="deuteranopia"] {
+  --life: #fb7185;
+  --danger: #fda4af;
+  --nerve: #7dd3fc;
+  --money: #fcd34d;
+  --success: #fcd34d;
+  --happy: #c4b5fd;
+}
+
+[data-contrast="high"][data-colorblind="tritanopia"] {
+  --energy: #f9a8d4;
+  --happy: #5eead4;
+  --text-link: #fbcfe8;
+  --text-warn: #fdba74;
+}
+
 * {
   box-sizing: border-box;
 }

@@ -250,6 +250,27 @@ export function IconGig(p: IconProps) {
     </svg>
   );
 }
+export function IconMarket(p: IconProps) {
+  return (
+    <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden className={p.className}>
+      <path d="M2 4h12v2H2zm1 3h10v7H3zm3 0v7m4-7v7" {...stroke} />
+    </svg>
+  );
+}
+export function IconStocks(p: IconProps) {
+  return (
+    <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden className={p.className}>
+      <path d="M2 12l4-4 3 2 5-6M2 14h12" {...stroke} />
+    </svg>
+  );
+}
+export function IconMission(p: IconProps) {
+  return (
+    <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden className={p.className}>
+      <path d="M4 2h8v12H4zm2 3h4M6 8h4M6 11h3" {...stroke} />
+    </svg>
+  );
+}
 
 const MAP: Record<string, (p: IconProps) => JSX.Element> = {
   "/city": IconCity,
@@ -266,8 +287,13 @@ const MAP: Record<string, (p: IconProps) => JSX.Element> = {
   "/jail": IconJail,
   "/jobs": IconJob,
   "/gigs": IconGig,
+  "/advisor": IconJob,
+  "/missions": IconMission,
   "/bank": IconBank,
+  "/stocks": IconStocks,
   "/business": IconProperty,
+  "/cleaning": IconBank,
+  "/market": IconMarket,
   "/bazaar": IconShop,
   "/shops": IconShop,
   "/properties": IconProperty,
@@ -278,12 +304,17 @@ const MAP: Record<string, (p: IconProps) => JSX.Element> = {
   "/casino": IconCasino,
   "/raceway": IconRace,
   "/contacts": IconSocial,
+  "/rival": IconSocial,
   "/faction": IconFaction,
   "/messages": IconMail,
   "/profile": IconProfile,
+  "/planner": IconTimeline,
+  "/events": IconPaper,
   "/awards": IconStar,
   "/power": IconPower,
   "/codex": IconBook,
+  "/combos": IconBook,
+  "/almanac": IconBook,
   "/newspaper": IconPaper,
   "/timeline": IconTimeline,
   "/settings": IconSettings,

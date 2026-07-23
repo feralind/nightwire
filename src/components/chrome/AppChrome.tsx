@@ -10,6 +10,7 @@ import { useGame } from "@/store/gameStore";
 import { GameButton } from "@/components/ui/GameButton";
 import { ResultModal } from "@/components/chrome/ResultModal";
 import { AwardModal } from "@/components/chrome/AwardModal";
+import { UndoBar } from "@/components/chrome/UndoBar";
 import { IconMail, IconSettings, IconStar, NavIcon } from "@/components/ui/Icons";
 import { VEX_ART } from "@/components/ui/Visuals";
 import styles from "./AppChrome.module.css";
@@ -57,8 +58,13 @@ const NAV: {
     links: [
       { href: "/jobs", label: "Job" },
       { href: "/gigs", label: "Gigs" },
+      { href: "/advisor", label: "Advisor" },
+      { href: "/missions", label: "Missions" },
       { href: "/bank", label: "Bank" },
+      { href: "/stocks", label: "Stocks" },
       { href: "/business", label: "Business" },
+      { href: "/cleaning", label: "Cleaning" },
+      { href: "/market", label: "Market" },
       { href: "/bazaar", label: "Bazaar" },
       { href: "/shops", label: "Shops" },
       { href: "/properties", label: "Properties" },
@@ -84,6 +90,7 @@ const NAV: {
     section: "SOCIAL",
     links: [
       { href: "/contacts", label: "Contacts" },
+      { href: "/rival", label: "Rival" },
       { href: "/faction", label: "Faction" },
       { href: "/messages", label: "Messages" },
     ],
@@ -92,9 +99,13 @@ const NAV: {
     section: "META",
     links: [
       { href: "/profile", label: "Profile" },
+      { href: "/planner", label: "Planner" },
+      { href: "/events", label: "Events" },
       { href: "/awards", label: "Awards" },
       { href: "/power", label: "Power Tracks" },
       { href: "/codex", label: "Codex" },
+      { href: "/combos", label: "Combos" },
+      { href: "/almanac", label: "Almanac" },
       { href: "/newspaper", label: "Newspaper" },
       { href: "/timeline", label: "Timeline" },
       { href: "/settings", label: "Settings" },
@@ -157,6 +168,8 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
       identitySubtitle: st.identitySubtitle,
       district: st.district,
       density: st.density,
+      highContrast: st.highContrast,
+      colorblindPack: st.colorblindPack,
       life: st.life,
       lifeMax: st.lifeMax,
       energy: st.energy,
@@ -215,8 +228,16 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
   }, [tick]);
 
   useEffect(() => {
-    document.documentElement.dataset.density = s.density;
-  }, [s.density]);
+    const root = document.documentElement;
+    root.dataset.density = s.density;
+    if (s.highContrast) root.dataset.contrast = "high";
+    else delete root.dataset.contrast;
+    if (s.colorblindPack && s.colorblindPack !== "none") {
+      root.dataset.colorblind = s.colorblindPack;
+    } else {
+      delete root.dataset.colorblind;
+    }
+  }, [s.density, s.highContrast, s.colorblindPack]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -444,7 +465,10 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
               </div>
             </div>
           ) : (
-            children
+            <>
+              {children}
+              <UndoBar />
+            </>
           )}
         </main>
 
@@ -509,13 +533,16 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
                 </div>
               </div>
             </div>
-            <Link href="/contacts">Contacts & tips</Link>
+            <Link href="/rival">Rival dossier</Link>
           </div>
         </aside>
       </div>
 
       <footer className={styles.footer}>
-        Nightwire offline · dens {s.density} · press / to search · Inv {s.investigation} · Respect {s.power.respect}
+        Nightwire offline · dens {s.density}
+        {s.highContrast ? " · HC" : ""}
+        {s.colorblindPack && s.colorblindPack !== "none" ? ` · ${s.colorblindPack}` : ""}
+        {" · "}press / to search · Inv {s.investigation} · Respect {s.power.respect}
       </footer>
 
       <ResultModal />

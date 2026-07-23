@@ -31,7 +31,7 @@ export type CrimeDef = {
 export type JobDef = {
   id: string;
   career: string;
-  rank: 1 | 2 | 3;
+  rank: 1 | 2 | 3 | 4;
   title: string;
   basePay: number;
   energy: number;
@@ -132,6 +132,12 @@ export type DistrictDef = {
   risk: string;
 };
 
+/** Explicit presentation for adult-banter filters (never infer slutty from unknown). */
+export type PersonGender = "female" | "male" | "unknown";
+
+/** Diegetic voice — `slutty` only applies when gender is female + settings allow. */
+export type PersonPersona = "noir" | "slutty";
+
 export type NpcDef = {
   id: string;
   name: string;
@@ -150,6 +156,10 @@ export type NpcDef = {
   heatOnLose: number;
   energyCost: number;
   flavor: string;
+  /** Optional sultry flavor when adultNpc is on (female + slutty only). */
+  flavorSlutty?: string;
+  gender?: PersonGender;
+  persona?: PersonPersona;
 };
 
 export type PropertyDef = {
@@ -204,9 +214,15 @@ export type ContactDef = {
   role: string;
   district?: DistrictId;
   blurb: string;
+  /** Adult-setting alternate dossier line (female + slutty only). */
+  blurbSlutty?: string;
   /** Prefer this district for “nearby” flavor */
   homeDistrict?: DistrictId;
   unlockHint: string;
+  /** Explicit gender for persona filters */
+  gender: PersonGender;
+  /** Default noir; slutty only honored for female + adultNpc */
+  persona?: PersonPersona;
   actions: {
     id: ContactActionId;
     label: string;

@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback, useEffect, useState } from "react";
 import { CONTACTS } from "@/content/catalog";
 import {
   actionReasons,
@@ -11,6 +12,8 @@ import {
 } from "@/game/contacts";
 import { rivalFlagCount } from "@/game/rival";
 import { formatMoney } from "@/game/formulas";
+import { fetchLifeBeat } from "@/game/lifeAi";
+import { contactBlurb } from "@/game/persona";
 import { Module } from "@/components/ui/Module";
 import { GameButton } from "@/components/ui/GameButton";
 import { RequirementsBox } from "@/components/ui/RequirementsBox";
@@ -26,6 +29,63 @@ export default function ContactsPage() {
   const unlocked = CONTACTS.filter((c) => isContactUnlocked(c, s));
   const locked = CONTACTS.filter((c) => !isContactUnlocked(c, s));
   const flags = rivalFlagCount(s);
+  const [rivalAi, setRivalAi] = useState<{ text: string; source: "ai" | "fallback" } | null>(null);
+  const [flavor, setFlavor] = useState<Record<string, { text: string; source: "ai" | "fallback" }>>({});
+  const [busy, setBusy] = useState<string | null>(null);
+
+  const loadRivalAi = useCallback(
+    async (force = false) => {
+      if (!s.aiLife) {
+        setRivalAi(null);
+        return;
+      }
+      setBusy("rival");
+      try {
+        const beat = await fetchLifeBeat(
+          {
+            kind: "rival",
+            district: s.district,
+            heat: s.heat,
+            level: s.level,
+            playerName: s.name,
+            lastEvents: [s.rivalLast].filter(Boolean),
+            adultNpc: s.adultNpc,
+          },
+          { enabled: true, seed: s.seed || "nw", force, adultNpc: s.adultNpc }
+        );
+        setRivalAi(beat);
+      } finally {
+        setBusy(null);
+      }
+    },
+    [s.aiLife, s.adultNpc, s.district, s.heat, s.level, s.name, s.rivalLast, s.seed]
+  );
+
+  useEffect(() => {
+    void loadRivalAi(false);
+  }, [loadRivalAi]);
+
+  const askContactLine = async (contactId: string, force = false) => {
+    if (!s.aiLife) return;
+    setBusy(contactId);
+    try {
+      const beat = await fetchLifeBeat(
+        {
+          kind: "contact",
+          contactId,
+          district: s.district,
+          heat: s.heat,
+          level: s.level,
+          playerName: s.name,
+          adultNpc: s.adultNpc,
+        },
+        { enabled: true, seed: s.seed || "nw", force, adultNpc: s.adultNpc }
+      );
+      setFlavor((prev) => ({ ...prev, [contactId]: beat }));
+    } finally {
+      setBusy(null);
+    }
+  };
 
   return (
     <div>
@@ -51,7 +111,7 @@ export default function ContactsPage() {
 
       <Module
         title="Rival — Vex"
-        footer={`${flags}/10 scripted beats fired · Score ${s.rivalScore}`}
+        footer={`${flags}/10 scripted beats fired · Score ${s.rivalScore}${s.aiLife ? " · optional Grok mood" : ""}`}
       >
         <div className={contactStyles.rivalRow}>
           <div className={contactStyles.rivalArt}>
@@ -62,9 +122,29 @@ export default function ContactsPage() {
             <p className={styles.sub} style={{ marginTop: 0 }}>
               {s.rivalLast}
             </p>
-            <p className={styles.sub}>
-              Soft pressure: stress/happy hits on beats; away ticks can skim street cash.
-            </p>
+            {s.aiLife ? (
+              <>
+                <p className={styles.sub} style={{ marginBottom: 6 }}>
+                  {rivalAi?.text ?? (busy === "rival" ? "Listening on the rival channel…" : "")}
+                </p>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+                  <GameButton
+                    variant="secondary"
+                    disabled={busy === "rival"}
+                    onClick={() => void loadRivalAi(true)}
+                  >
+                    {busy === "rival" ? "…" : "Refresh mood"}
+                  </GameButton>
+                  {rivalAi ? (
+                    <span className={styles.sub}>{rivalAi.source === "ai" ? "Grok" : "Fallback"}</span>
+                  ) : null}
+                </div>
+              </>
+            ) : (
+              <p className={styles.sub}>
+                Soft pressure: stress/happy hits on beats; away ticks can skim street cash.
+              </p>
+            )}
           </div>
         </div>
       </Module>
@@ -77,6 +157,7 @@ export default function ContactsPage() {
             {unlocked.map((c) => {
               const prog = contactProgress(s, c.id);
               const portrait = CONTACT_ART[c.id] ?? "/art/contacts/hero.webp";
+              const line = flavor[c.id];
               return (
                 <article key={c.id} className={contactStyles.card}>
                   <div className={contactStyles.art}>
@@ -92,8 +173,25 @@ export default function ContactsPage() {
                   </div>
                   <div className={contactStyles.body}>
                     <p className={contactStyles.role}>
-                      {c.role} · {c.blurb}
+                      {c.role} · {contactBlurb(c, s.adultNpc)}
                     </p>
+                    {s.aiLife ? (
+                      <div className={contactStyles.action}>
+                        {line ? <p className={styles.sub}>{line.text}</p> : null}
+                        <GameButton
+                          variant="secondary"
+                          disabled={busy === c.id}
+                          onClick={() => void askContactLine(c.id, true)}
+                        >
+                          {busy === c.id ? "…" : line ? "Ask tip again" : "Ask tip"}
+                        </GameButton>
+                        {line ? (
+                          <span className={styles.sub} style={{ marginLeft: 8 }}>
+                            {line.source === "ai" ? "Grok" : "Fallback"}
+                          </span>
+                        ) : null}
+                      </div>
+                    ) : null}
                     <div className={contactStyles.actions}>
                       {c.actions.map((a) => {
                         const ok = canContactAction(c, a.id, s);

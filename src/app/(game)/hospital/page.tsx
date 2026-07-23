@@ -6,7 +6,7 @@ import { canDoLeisure } from "@/game/body";
 import { CollapsiblePanel } from "@/components/ui/CollapsiblePanel";
 import { GameButton } from "@/components/ui/GameButton";
 import { InfoRow, InfoRowBlock } from "@/components/ui/InfoRow";
-import { PageHero } from "@/components/ui/Visuals";
+import { HOSPITAL_HERO, PageHero } from "@/components/ui/Visuals";
 import { formatMmSs, formatMoney, medicalCost } from "@/game/formulas";
 import { useGame } from "@/store/gameStore";
 import hub from "../hub.module.css";
@@ -40,7 +40,7 @@ export default function HospitalPage() {
         title="Hospital"
         subtitle="Patch up, clear wounds, get back on the street."
         tone="hospital"
-        image="/art/hospital/ward.webp"
+        image={HOSPITAL_HERO}
         tall
       />
 

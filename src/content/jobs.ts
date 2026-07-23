@@ -1,7 +1,8 @@
 import type { JobDef } from "@/game/types";
+import { JOBS_EXTRA } from "@/content/jobsExtra";
 
-/** V1 — 8 careers × 3 ranks = 24 jobs */
-export const JOBS: JobDef[] = [
+/** V1 core — 8 careers × 3 ranks = 24 jobs */
+const JOBS_CORE: JobDef[] = [
   // Retail
   {
     id: "retail_1",
@@ -364,3 +365,6 @@ export const JOBS: JobDef[] = [
     specialtyCrimeIds: ["bond_fraud", "aide_blackmail", "evidence_swap", "private_vault"],
   },
 ];
+
+/** AAA live pack — 64 jobs (16 careers × ranks 1–4). */
+export const JOBS: JobDef[] = [...JOBS_CORE, ...JOBS_EXTRA];

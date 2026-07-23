@@ -1,6 +1,15 @@
 "use client";
 
 import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
+import {
+  CAREER_ART_EXTRA,
+  COURSE_ART_EXTRA,
+  CRIME_ART_EXTRA,
+  JOB_ART_EXTRA,
+  NPC_ART_EXTRA,
+  SCENES_EXTRA,
+} from "@/components/ui/artMapsExtra";
+import { NPC_ART_DENSITY, PROPERTY_ART_DENSITY } from "@/content/density/artDensity";
 
 /** Procedural atmospheric art panels — original Nightwire look, no Torn assets */
 
@@ -53,9 +62,10 @@ const SCENES: Record<string, { bg: string; accent: string; label: string }> = {
   aide_blackmail: { bg: "linear-gradient(145deg,#0c1018 0%,#1c2838 45%,#0e0e10 100%)", accent: "#6080b0", label: "aide" },
   train_arms: { bg: "linear-gradient(150deg,#0c0c10 0%,#2a2a38 40%,#0c0c10 100%)", accent: "#8890a8", label: "rail yard" },
   courier: { bg: "linear-gradient(145deg,#100c14 0%,#281838 45%,#0c0a10 100%)", accent: "#9060c0", label: "courier" },
+  ...SCENES_EXTRA,
 };
 
-/** Generated crime card art — all 48 V1 crimes */
+/** Generated crime card art — V1 + AAA (aliases until unique plates land) */
 const CRIME_ART: Record<string, string> = {
   shoplift: "/art/crimes/shoplift.webp",
   pickpocket: "/art/crimes/pickpocket.webp",
@@ -105,6 +115,7 @@ const CRIME_ART: Record<string, string> = {
   aide_blackmail: "/art/crimes/aide_blackmail.webp",
   train_arms: "/art/crimes/train_arms.webp",
   courier: "/art/crimes/courier.webp",
+  ...CRIME_ART_EXTRA,
 };
 
 export const NPC_ART: Record<string, string> = {
@@ -123,6 +134,12 @@ export const NPC_ART: Record<string, string> = {
   sy_guard: "/art/npcs/sy_guard.webp",
   oc_thug: "/art/npcs/oc_thug.webp",
   oc_runner: "/art/npcs/oc_runner.webp",
+  np_dealer: "/art/npcs/np_dealer.webp",
+  np_bouncer: "/art/npcs/np_bouncer.webp",
+  rc_orderly: "/art/npcs/rc_orderly.webp",
+  rc_security: "/art/npcs/rc_security.webp",
+  ...NPC_ART_EXTRA,
+  ...NPC_ART_DENSITY,
 };
 
 export const CONTACT_ART: Record<string, string> = {
@@ -141,16 +158,33 @@ export const CONTACT_ART: Record<string, string> = {
   vex: "/art/contacts/vex.webp",
 };
 
-/** Career board thumbs — keyed by job career id */
+/** Career board thumbs — keyed by job id (unique art per rank) */
 export const JOB_ART: Record<string, string> = {
-  retail: "/art/jobs/retail.webp",
-  kitchen: "/art/jobs/kitchen.webp",
-  warehouse: "/art/jobs/warehouse.webp",
-  dockhand: "/art/jobs/dockhand.webp",
-  driver: "/art/jobs/driver.webp",
-  orderly: "/art/jobs/orderly.webp",
-  casino: "/art/jobs/casino.webp",
-  citydesk: "/art/jobs/citydesk.webp",
+  retail_1: "/art/jobs/retail_1.webp",
+  retail_2: "/art/jobs/retail_2.webp",
+  retail_3: "/art/jobs/retail_3.webp",
+  kitchen_1: "/art/jobs/kitchen_1.webp",
+  kitchen_2: "/art/jobs/kitchen_2.webp",
+  kitchen_3: "/art/jobs/kitchen_3.webp",
+  warehouse_1: "/art/jobs/warehouse_1.webp",
+  warehouse_2: "/art/jobs/warehouse_2.webp",
+  warehouse_3: "/art/jobs/warehouse_3.webp",
+  dock_1: "/art/jobs/dock_1.webp",
+  dock_2: "/art/jobs/dock_2.webp",
+  dock_3: "/art/jobs/dock_3.webp",
+  driver_1: "/art/jobs/driver_1.webp",
+  driver_2: "/art/jobs/driver_2.webp",
+  driver_3: "/art/jobs/driver_3.webp",
+  orderly_1: "/art/jobs/orderly_1.webp",
+  orderly_2: "/art/jobs/orderly_2.webp",
+  orderly_3: "/art/jobs/orderly_3.webp",
+  casino_1: "/art/jobs/casino_1.webp",
+  casino_2: "/art/jobs/casino_2.webp",
+  casino_3: "/art/jobs/casino_3.webp",
+  citydesk_1: "/art/jobs/citydesk_1.webp",
+  citydesk_2: "/art/jobs/citydesk_2.webp",
+  citydesk_3: "/art/jobs/citydesk_3.webp",
+  ...JOB_ART_EXTRA,
 };
 
 /** Gym track strips — keyed by store stat */
@@ -176,6 +210,11 @@ export const PROPERTY_ART: Record<string, string> = {
   sy_pent: "/art/properties/sy_pent.webp",
   oc_room: "/art/properties/oc_room.webp",
   oc_walkup: "/art/properties/oc_walkup.webp",
+  np_booth: "/art/properties/np_booth.webp",
+  np_loft: "/art/properties/np_loft.webp",
+  rc_bunk: "/art/properties/rc_bunk.webp",
+  rc_suite: "/art/properties/rc_suite.webp",
+  ...PROPERTY_ART_DENSITY,
 };
 
 export const AWARD_CAT_ART: Record<string, string> = {
@@ -232,6 +271,8 @@ export const DISTRICT_ART: Record<string, string> = {
   ashcourt: "/art/districts/ashcourt.webp",
   spireyard: "/art/districts/spireyard.webp",
   oldcommons: "/art/districts/oldcommons.webp",
+  neonpier: "/art/districts/neonpier.webp",
+  redclinic: "/art/districts/redclinic.webp",
 };
 
 export const HEIST_ART: Record<string, string> = {
@@ -277,13 +318,63 @@ export const CODEX_HERO = "/art/codex/hero.webp";
 export const NEWSPAPER_HERO = "/art/newspaper/hero.webp";
 export const TIMELINE_HERO = "/art/timeline/hero.webp";
 
-export const BUSINESS_HERO = "/art/bank/hero.webp";
+export const BUSINESS_HERO = "/art/business/hero.webp";
+export const BANK_HERO = "/art/bank/hero.webp";
 
 export const BUSINESS_FRONT_ART: Record<string, string> = {
-  corner_laundry: "/art/crimes/laundry_pouch.webp",
-  courier_front: "/art/crimes/courier.webp",
-  pawn_consortium: "/art/crimes/jewel_case.webp",
-  holding_co: "/art/properties/sy_pent.webp",
+  corner_laundry: "/art/business/corner_laundry.webp",
+  courier_front: "/art/business/courier_front.webp",
+  pawn_consortium: "/art/business/pawn_consortium.webp",
+  holding_co: "/art/business/holding_co.webp",
+};
+
+export const FACTION_ART: Record<string, string> = {
+  glass_syndicate: "/art/factions/glass_syndicate.webp",
+  mill_iron: "/art/factions/mill_iron.webp",
+  dock_covenant: "/art/factions/dock_covenant.webp",
+  civic_veil: "/art/factions/civic_veil.webp",
+};
+export const FACTION_HERO = "/art/factions/hero.webp";
+
+export const RACE_ART: Record<string, string> = {
+  alley_dash: "/art/raceway/alley_dash.webp",
+  harbor_loop: "/art/raceway/harbor_loop.webp",
+  commons_drift: "/art/raceway/commons_drift.webp",
+  pier_sprint: "/art/raceway/pier_sprint.webp",
+  spire_invite: "/art/raceway/spire_invite.webp",
+  mill_night: "/art/raceway/mill_night.webp",
+};
+export const RACEWAY_HERO = "/art/raceway/hero.webp";
+
+export const BOUNTIES_HERO = "/art/bounties/hero.webp";
+export const CASINO_HERO = "/art/casino/lobby.webp";
+export const CONTACTS_HERO = "/art/contacts/hero.webp";
+export const GYMNASIUM_HERO = "/art/gym/hero.webp";
+export const AWARDS_HERO = "/art/awards/hero.webp";
+export const HOSPITAL_HERO = "/art/hospital/hero.webp";
+export const HOSPITAL_WARD = "/art/hospital/ward.webp";
+export const JAIL_HERO = "/art/jail/hero.webp";
+export const JAIL_BLOCK = "/art/jail/block.webp";
+
+export const LEISURE_ART: Record<string, string> = {
+  dive_bar: "/art/leisure/dive_bar.webp",
+  cafe_sit: "/art/leisure/cafe_sit.webp",
+  clinic_chair: "/art/leisure/clinic_chair.webp",
+  therapy: "/art/leisure/therapy.webp",
+  cot_rest: "/art/leisure/cot_rest.webp",
+};
+
+/** Legacy career thumbs (rank-1 aliases) — kept for any hero fallbacks */
+export const CAREER_ART: Record<string, string> = {
+  retail: "/art/jobs/retail.webp",
+  kitchen: "/art/jobs/kitchen.webp",
+  warehouse: "/art/jobs/warehouse.webp",
+  dockhand: "/art/jobs/dockhand.webp",
+  driver: "/art/jobs/driver.webp",
+  orderly: "/art/jobs/orderly.webp",
+  casino: "/art/jobs/casino.webp",
+  citydesk: "/art/jobs/citydesk.webp",
+  ...CAREER_ART_EXTRA,
 };
 
 export const VEX_ART = "/art/contacts/vex.webp";
@@ -304,7 +395,7 @@ export function CrimeArt({ crimeId, locked }: { crimeId: string; locked?: boolea
     <div
       style={{
         position: "relative",
-        height: 128,
+        height: 240,
         background: photo
           ? `${CARD_BG_POS}/cover no-repeat url(${photo}), ${scene.bg}`
           : scene.bg,
@@ -606,7 +697,7 @@ export function ArtTile({
       <div
         style={{
           position: "relative",
-          height: 120,
+          height: 168,
           background: `${CARD_BG_POS}/cover no-repeat url(${image}), #151518`,
         }}
       >
@@ -689,4 +780,34 @@ export const SCHOOL_ART: Record<string, string> = {
   "Harbor & Logistics": "/art/campus/harbor.webp",
   "Med & Civic": "/art/campus/med.webp",
   "Locks & Entry": "/art/campus/locks.webp",
+  "Systems & Signals": "/art/campus/systems.webp",
+};
+
+/** Per-course plate art — keyed by course id */
+export const COURSE_ART: Record<string, string> = {
+  se1: "/art/campus/courses/se1.webp",
+  se2: "/art/campus/courses/se2.webp",
+  se3: "/art/campus/courses/se3.webp",
+  se4: "/art/campus/courses/se4.webp",
+  se5: "/art/campus/courses/se5.webp",
+  cf1: "/art/campus/courses/cf1.webp",
+  cf2: "/art/campus/courses/cf2.webp",
+  cf3: "/art/campus/courses/cf3.webp",
+  cf4: "/art/campus/courses/cf4.webp",
+  hl1: "/art/campus/courses/hl1.webp",
+  hl2: "/art/campus/courses/hl2.webp",
+  hl3: "/art/campus/courses/hl3.webp",
+  hl4: "/art/campus/courses/hl4.webp",
+  mc1: "/art/campus/courses/mc1.webp",
+  mc2: "/art/campus/courses/mc2.webp",
+  mc3: "/art/campus/courses/mc3.webp",
+  mc4: "/art/campus/courses/mc4.webp",
+  le1: "/art/campus/courses/le1.webp",
+  le2: "/art/campus/courses/le2.webp",
+  le3: "/art/campus/courses/le3.webp",
+  sy1: "/art/campus/courses/sy1.webp",
+  sy2: "/art/campus/courses/sy2.webp",
+  sy3: "/art/campus/courses/sy3.webp",
+  sy4: "/art/campus/courses/sy4.webp",
+  ...COURSE_ART_EXTRA,
 };

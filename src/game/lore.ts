@@ -62,6 +62,10 @@ export function isCodexUnlocked(entry: CodexEntry, s: GameState): boolean {
       return (s.lifetime.districtsVisited ?? []).includes("spireyard");
     case "dist_oldcommons":
       return (s.lifetime.districtsVisited ?? []).includes("oldcommons");
+    case "dist_neonpier":
+      return (s.lifetime.districtsVisited ?? []).includes("neonpier");
+    case "dist_redclinic":
+      return (s.lifetime.districtsVisited ?? []).includes("redclinic");
     case "sys_dual_life":
     case "story_arrival":
       return s.created;
@@ -99,6 +103,68 @@ export function isCodexUnlocked(entry: CodexEntry, s: GameState): boolean {
       return s.completedCourses.some((id) => id.startsWith("mc"));
     case "school_locks":
       return s.completedCourses.some((id) => id.startsWith("le"));
+    case "school_systems":
+      return s.completedCourses.some((id) => id.startsWith("sy"));
+    case "story_pier_first":
+      return (s.lifetime.districtsVisited ?? []).includes("neonpier");
+    case "story_clinic_first":
+      return (s.lifetime.districtsVisited ?? []).includes("redclinic");
+    case "story_mission_one":
+      return (s.lifetime.missionsCompleted ?? 0) >= 1;
+    case "story_property_two":
+      return s.ownedProperties.length >= 2;
+    case "story_rank_operator":
+      return s.rankIndex >= 3;
+    case "story_attack_five":
+      return s.lifetime.attacksWon >= 5;
+    case "story_course_three":
+      return s.completedCourses.length >= 3;
+    case "story_heist_one":
+      return (s.lifetime.heistsCompleted ?? 0) >= 1;
+    case "story_bank_nest_big":
+      return s.bank >= 25000 || s.lifetime.peakBank >= 25000;
+    case "story_heat_siren":
+      return s.lifetime.peakHeat >= 100;
+    case "story_gig_ten":
+      return s.lifetime.gigsDone >= 10;
+    case "story_shift_twenty":
+      return s.lifetime.shiftsWorked >= 20;
+    case "story_flex":
+      return s.inventory.some((i) => i.itemId.includes("suit") || i.itemId.includes("gold") || i.itemId.includes("watch") || i.itemId.includes("velvet") || i.itemId.includes("diamond"));
+    case "story_tool_pro":
+      return s.inventory.some((i) => ["lockpick", "thermal_lance", "pickup_gun", "laser_mic"].includes(i.itemId));
+    case "story_district_all":
+      return (s.lifetime.districtsVisited ?? []).length >= 8;
+    case "sys_missions":
+      return (s.lifetime.missionsCompleted ?? 0) >= 1 || (s.missions?.active?.length ?? 0) > 0;
+    case "sys_shops":
+      return s.lifetime.bankDeposits >= 1 || s.streetSpendVisit > 0;
+    case "sys_loadout":
+      return s.inventory.some((i) => i.equipped);
+    case "sys_ranks":
+      return s.rankIndex >= 2;
+    case "sys_awards":
+      return Object.keys(s.unlockedAwards ?? {}).length >= 1;
+    case "sys_gym":
+      return s.lifetime.gymSessions >= 1;
+    case "sys_travel":
+      return s.lifetime.travels >= 1;
+    case "sys_inventory":
+      return s.inventory.length >= 2;
+    case "sys_energy":
+      return s.lifetime.crimesAttempted >= 1 || s.lifetime.shiftsWorked >= 1;
+    case "sys_stress":
+      return s.stress >= 20;
+    case "sys_legitimacy":
+      return s.legitimacy > 10;
+    case "sys_respect":
+      return (s.power?.respect ?? 0) > 0;
+    case "sys_adult":
+      return s.created;
+    case "sys_newspaper":
+      return s.created;
+    case "sys_timeline":
+      return (s.logs?.length ?? 0) >= 1 || s.created;
     case "story_first_score":
       return s.lifetime.crimesSucceeded >= 1;
     case "story_cuffs":
@@ -173,7 +239,7 @@ function reactiveFlags(s: GameState): string[] {
   if (s.bank >= 5000 || s.lifetime.peakBank >= 5000) flags.push("bank_nest");
   if ((s.lifetime.contactUses ?? 0) >= 1) flags.push("contact_favor");
   if (s.lifetime.peakHeat >= 80) flags.push("too_loud");
-  if ((s.lifetime.districtsVisited ?? []).length >= 6) flags.push("six_rails");
+  if ((s.lifetime.districtsVisited ?? []).length >= 8) flags.push("six_rails");
   if ((s.lifetime.heistsCompleted ?? 0) >= 3) flags.push("board_collector");
   return flags;
 }

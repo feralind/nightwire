@@ -14,7 +14,7 @@ import { CollapsiblePanel } from "@/components/ui/CollapsiblePanel";
 import { GameButton } from "@/components/ui/GameButton";
 import { InfoRow, InfoRowBlock } from "@/components/ui/InfoRow";
 import { RequirementsBox } from "@/components/ui/RequirementsBox";
-import { PageHero } from "@/components/ui/Visuals";
+import { LEISURE_ART, PageHero, HOSPITAL_WARD } from "@/components/ui/Visuals";
 import { useGame } from "@/store/gameStore";
 import hub from "../hub.module.css";
 import styles from "./body.module.css";
@@ -36,7 +36,7 @@ export default function BodyPage() {
         title="Body"
         subtitle="Stress bands, wound slots, and cheap ways to bleed pressure off."
         tone="hospital"
-        image="/art/hospital/ward.webp"
+        image={HOSPITAL_WARD}
         tall
       >
         <div className={hub.chipRow}>
@@ -118,6 +118,18 @@ export default function BodyPage() {
                   : "Free (cot)";
             return (
               <article key={a.id} className={styles.leisureCard}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={LEISURE_ART[a.id] ?? HOSPITAL_WARD}
+                  alt=""
+                  style={{
+                    width: "100%",
+                    height: 88,
+                    objectFit: "cover",
+                    borderRadius: 4,
+                    marginBottom: 8,
+                  }}
+                />
                 <h3 className={styles.leisureName}>{a.name}</h3>
                 <p className={styles.meta}>
                   {cost} · −{a.id === "cot_rest" ? "cot-scaled" : a.stressRelief} stress · +

@@ -267,8 +267,9 @@ export default function BusinessPage() {
           Wash street→clean (−{formatMoney(cleanFee)} / {Math.round(laundryRate * 100)}%)
         </GameButton>
         <p className={styles.sub} style={{ marginTop: 8 }}>
-          Also available at the <Link href="/bank">Bank</Link> cage — same empire fee once you own a
-          front.
+          Dedicated wash desk: <Link href="/cleaning">Cleaning</Link>
+          {" · "}
+          Also at the <Link href="/bank">Bank</Link> cage — same empire fee once you own a front.
         </p>
       </Module>
 

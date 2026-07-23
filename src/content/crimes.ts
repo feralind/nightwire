@@ -1,7 +1,8 @@
 import type { CrimeDef } from "@/game/types";
+import { CRIMES_EXTRA } from "@/content/crimesExtra";
 
-/** V1 — 48 crimes (16 petty / 16 street / 16 heavy). Keep original V0 ids stable. */
-export const CRIMES: CrimeDef[] = [
+/** V1 core — 48 crimes (16 petty / 16 street / 16 heavy). Keep original V0 ids stable. */
+const CRIMES_CORE: CrimeDef[] = [
   // —— Petty (1–2 nerve) ——
   { id: "shoplift", name: "Shoplift corner store", tier: "petty", family: "petty", nerve: 1, difficulty: 28, cashMin: 80, cashMax: 150, xp: 5, heat: 1, failDamage: 4, favoredDistricts: ["glassrow", "oldcommons"] },
   { id: "pickpocket", name: "Pick pocket tram", tier: "petty", family: "petty", nerve: 1, difficulty: 30, cashMin: 100, cashMax: 200, xp: 6, heat: 1, failDamage: 5, favoredDistricts: ["glassrow", "millstone", "oldcommons"] },
@@ -56,3 +57,6 @@ export const CRIMES: CrimeDef[] = [
   { id: "train_arms", name: "Train-yard arms crate", tier: "heavy", family: "heavy", nerve: 9, difficulty: 140, cashMin: 7000, cashMax: 14000, xp: 130, heat: 22, failDamage: 38, requiresLevel: 9, requiresCourse: "hl1", favoredDistricts: ["docksreach", "millstone"] },
   { id: "courier", name: "Federal courier intercept", tier: "heavy", family: "heavy", nerve: 8, difficulty: 150, cashMin: 8000, cashMax: 15000, xp: 150, heat: 25, failDamage: 40, requiresLevel: 10, requiresCourse: "cf2", favoredDistricts: ["docksreach", "glassrow", "spireyard"] },
 ];
+
+/** AAA live pack — 144 crimes (48 / 48 / 48). */
+export const CRIMES: CrimeDef[] = [...CRIMES_CORE, ...CRIMES_EXTRA];

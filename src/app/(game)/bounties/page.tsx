@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { DISTRICTS, getNpc } from "@/content/catalog";
 import { Module } from "@/components/ui/Module";
 import { GameButton } from "@/components/ui/GameButton";
-import { PageHero, NPC_ART } from "@/components/ui/Visuals";
+import { PageHero, NPC_ART, BOUNTIES_HERO } from "@/components/ui/Visuals";
 import { activeBounties } from "@/game/bounties";
 import { formatMoney } from "@/game/formulas";
 import { useGame } from "@/store/gameStore";
@@ -28,7 +28,7 @@ export default function BountiesPage() {
         title="Bounties"
         subtitle="Offline NPC contracts. Claim by KO in their district — clean payout on top of street loot."
         tone="crime"
-        image="/art/crimes/mug.webp"
+        image={BOUNTIES_HERO}
         tall
       >
         <div className={hub.chipRow}>
@@ -55,12 +55,20 @@ export default function BountiesPage() {
               const portrait = NPC_ART[npc.id] ?? "/art/crimes/mug.webp";
               return (
                 <article key={b.npcId} className={hub.panel}>
-                  <div style={{ display: "flex", gap: 10, marginBottom: 8 }}>
+                  <div style={{ display: "flex", gap: 12, marginBottom: 8, alignItems: "stretch" }}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={portrait}
                       alt=""
-                      style={{ width: 56, height: 56, objectFit: "cover", borderRadius: 4 }}
+                      style={{
+                        flex: "0 0 120px",
+                        width: 120,
+                        height: 140,
+                        objectFit: "cover",
+                        objectPosition: "center top",
+                        borderRadius: 4,
+                        background: "#151518",
+                      }}
                     />
                     <div>
                       <strong>{npc.name}</strong>

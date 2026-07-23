@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { getItem } from "@/content/catalog";
 import { formatMoney } from "@/game/formulas";
 import { sellPrice } from "@/game/bazaar";
@@ -36,6 +37,13 @@ export default function BazaarPage() {
           <span className={hub.chip}>{directorNote}</span>
         </div>
       </PageHero>
+
+      <p className={styles.sub}>
+        Want dual-ledger brokers and your own listings?{" "}
+        <Link href="/market">Open the Nightwire Market</Link>
+        {" · "}
+        <Link href="/stocks">City paper desk</Link>
+      </p>
 
       <CollapsiblePanel
         title={`Stalls · ${listings.length} listings`}

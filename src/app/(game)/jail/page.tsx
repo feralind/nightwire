@@ -2,7 +2,7 @@
 
 import { Module } from "@/components/ui/Module";
 import { GameButton } from "@/components/ui/GameButton";
-import { PageHero, SceneBanner } from "@/components/ui/Visuals";
+import { JAIL_BLOCK, JAIL_HERO, PageHero, SceneBanner } from "@/components/ui/Visuals";
 import { bailCost, formatMmSs, formatMoney, heatBand } from "@/game/formulas";
 import { politicalBailMult } from "@/game/power";
 import { useGame } from "@/store/gameStore";
@@ -25,7 +25,7 @@ export default function JailPage() {
         title="Jail"
         subtitle="Wait it out or buy freedom — heat prices bail. Stress climbs on the clock."
         tone="jail"
-        image="/art/jail/block.webp"
+        image={JAIL_HERO}
         tall
       >
         <div className={hub.chipRow}>
@@ -36,7 +36,7 @@ export default function JailPage() {
       </PageHero>
 
       <SceneBanner
-        image="/art/jail/block.webp"
+        image={JAIL_BLOCK}
         height={130}
         title={active ? "Holding cell — clocks only" : "Corridor empty — for now"}
         subtitle="Bail sinks clean cash. Stress rises while locked."

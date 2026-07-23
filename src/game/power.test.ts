@@ -57,6 +57,8 @@ describe("power tracks — political", () => {
           ashcourt: 0,
           spireyard: 0,
           oldcommons: 0,
+          neonpier: 0,
+          redclinic: 0,
         },
         politicalRung: 0,
         respect: 0,
@@ -119,6 +121,8 @@ describe("power tracks — business empire", () => {
           ashcourt: 0,
           spireyard: 0,
           oldcommons: 0,
+          neonpier: 0,
+          redclinic: 0,
         },
         politicalRung: 0,
         respect: 0,
@@ -141,6 +145,8 @@ describe("power tracks — business empire", () => {
           ashcourt: 0,
           spireyard: 0,
           oldcommons: 0,
+          neonpier: 0,
+          redclinic: 0,
         },
         politicalRung: 0,
         respect: 0,
@@ -152,7 +158,7 @@ describe("power tracks — business empire", () => {
     );
     const withTerr = businessIncomeForHours(
       {
-        territory: { glassrow: 100, millstone: 100, docksreach: 100, ashcourt: 100, spireyard: 100, oldcommons: 100 },
+        territory: { glassrow: 100, millstone: 100, docksreach: 100, ashcourt: 100, spireyard: 100, oldcommons: 100, neonpier: 0, redclinic: 0 },
         politicalRung: 0,
         respect: 0,
         businessTierOwned: 1,
@@ -164,13 +170,13 @@ describe("power tracks — business empire", () => {
     expect(base.income).toBe(200);
     expect(withTerr.income).toBeGreaterThan(base.income);
     expect(averageTerritory({
-      territory: { glassrow: 50, millstone: 0, docksreach: 100, ashcourt: 0, spireyard: 0, oldcommons: 0 },
+      territory: { glassrow: 50, millstone: 0, docksreach: 100, ashcourt: 0, spireyard: 0, oldcommons: 0, neonpier: 0, redclinic: 0 },
       politicalRung: 0,
       respect: 0,
       businessTierOwned: 0,
       businessRisk: 0,
       businessStaff: 0,
-    })).toBeCloseTo(25, 5);
+    })).toBeCloseTo(18.75, 5);
   });
 });
 
@@ -189,6 +195,8 @@ describe("power tracks — catch-up income", () => {
           ashcourt: 0,
           spireyard: 0,
           oldcommons: 0,
+          neonpier: 0,
+          redclinic: 0,
         },
         politicalRung: 0,
         respect: 0,
@@ -217,6 +225,8 @@ describe("power tracks — hybrid meters", () => {
           ashcourt: 10,
           spireyard: 10,
           oldcommons: 10,
+          neonpier: 0,
+          redclinic: 0,
         },
         politicalRung: 0,
         respect: 220,

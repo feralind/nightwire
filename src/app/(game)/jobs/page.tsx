@@ -36,7 +36,7 @@ export default function JobsPage() {
   const coursePayBonus = s.completedCourses.reduce((a, id) => a + (getCourse(id)?.jobPayBonus ?? 0), 0);
   const licensePayBonus = licenseJobPayBonus(s.licenses);
   const districtBoost = current?.districtBias.includes(s.district);
-  const currentArt = current ? JOB_ART[current.career] ?? "/art/jobs/hero.webp" : "/art/jobs/hero.webp";
+  const currentArt = current ? JOB_ART[current.id] ?? "/art/jobs/hero.webp" : "/art/jobs/hero.webp";
 
   return (
     <div>
@@ -147,14 +147,14 @@ export default function JobsPage() {
         )}
       </Module>
 
-      <Module title="Career board" footer="Rank 2 = promote only · Illustrated by career ladder">
+      <Module title="Career board" footer="Rank 2 = promote only · Unique art per job rank">
         <div className={board.grid}>
           {JOBS.map((j) => {
             const isCurrent = s.jobId === j.id;
             const applyReasons = jobApplyReasons(j, s);
             const locked = j.rank === 1 ? applyReasons.length > 0 : true;
             const exam = j.promoteCourse ? getCourse(j.promoteCourse)?.name : null;
-            const art = JOB_ART[j.career] ?? "/art/jobs/hero.webp";
+            const art = JOB_ART[j.id] ?? "/art/jobs/hero.webp";
             return (
               <article key={j.id} className={[board.card, isCurrent ? board.current : ""].filter(Boolean).join(" ")}>
                 <div className={board.art}>

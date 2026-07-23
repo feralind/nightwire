@@ -2,10 +2,11 @@
 
 import { Module } from "@/components/ui/Module";
 import { GameButton } from "@/components/ui/GameButton";
-import { PageHero } from "@/components/ui/Visuals";
+import { FACTION_ART, FACTION_HERO, PageHero } from "@/components/ui/Visuals";
 import { formatMoney } from "@/game/formulas";
 import {
   FACTIONS,
+  FACTION_WAR_ACTIONS,
   assistPay,
   chainMeterLabel,
   currentWar,
@@ -33,7 +34,7 @@ export default function FactionPage() {
         title="Faction"
         subtitle="Four NPC tables. Assist for clean pay and rep. War weeks raise the chain."
         tone="city"
-        image="/art/contacts/hero.webp"
+        image={FACTION_HERO}
         tall
       >
         <div className={hub.chipRow}>
@@ -67,11 +68,31 @@ export default function FactionPage() {
             const pay = Math.round(assistPay(rep) * (inWar ? warWeekBonus(rep) * 1.25 : 1));
             return (
               <article key={f.id} className={hub.panel}>
-                <h2 className={hub.panelTitle}>
-                  {f.name}
-                  {inWar ? " · WAR" : ""}
-                </h2>
-                <p className={hub.sub}>{f.blurb}</p>
+                <div style={{ display: "flex", gap: 12, marginBottom: 8, alignItems: "stretch" }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={FACTION_ART[f.id] ?? FACTION_HERO}
+                    alt=""
+                    style={{
+                      flex: "0 0 140px",
+                      width: 140,
+                      height: 160,
+                      objectFit: "cover",
+                      objectPosition: "center top",
+                      borderRadius: 4,
+                      background: "#151518",
+                    }}
+                  />
+                  <div>
+                    <h2 className={hub.panelTitle} style={{ margin: 0 }}>
+                      {f.name}
+                      {inWar ? " · WAR" : ""}
+                    </h2>
+                    <p className={hub.sub} style={{ margin: "4px 0 0" }}>
+                      {f.blurb}
+                    </p>
+                  </div>
+                </div>
                 <div className={hub.statRow}>
                   <span>Lean</span>
                   <strong>{f.lean}</strong>
@@ -91,6 +112,32 @@ export default function FactionPage() {
                 <GameButton disabled={!!blocked || s.energy < 5} onClick={() => s.assistFaction(f.id)}>
                   Assist (5 energy)
                 </GameButton>
+                {inWar ? (
+                  <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 6 }}>
+                    {FACTION_WAR_ACTIONS.map((a) => {
+                      const needClean = a.costClean ?? 0;
+                      const needStreet = a.costStreet ?? 0;
+                      const locked =
+                        blocked ||
+                        s.energy < a.energy ||
+                        s.clean < needClean ||
+                        s.street < needStreet;
+                      return (
+                        <GameButton
+                          key={a.id}
+                          variant="secondary"
+                          disabled={!!locked}
+                          onClick={() => s.factionWarAction(f.id, a.id)}
+                        >
+                          {a.name} ({a.energy}e
+                          {needClean ? ` · ${formatMoney(needClean)}c` : ""}
+                          {needStreet ? ` · ${formatMoney(needStreet)}s` : ""}
+                          {a.heat ? ` · heat+${a.heat}` : ""})
+                        </GameButton>
+                      );
+                    })}
+                  </div>
+                ) : null}
               </article>
             );
           })}

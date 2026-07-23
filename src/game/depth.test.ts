@@ -9,9 +9,9 @@ import { createInitialState } from "./state";
 import { bankInterestRate } from "./careers";
 
 describe("properties", () => {
-  it("ships property listings across 6 districts", () => {
-    expect(PROPERTIES.length).toBeGreaterThanOrEqual(12);
-    expect(new Set(PROPERTIES.map((p) => p.district)).size).toBe(6);
+  it("ships property listings across 8 districts", () => {
+    expect(PROPERTIES.length).toBeGreaterThanOrEqual(16);
+    expect(new Set(PROPERTIES.map((p) => p.district)).size).toBe(8);
   });
 
   it("requires in-district purchase with clean cash", () => {

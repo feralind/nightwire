@@ -18,11 +18,13 @@ describe("v1 content scale", () => {
     );
   });
 
-  it("ships 48 crimes as 16/16/16", () => {
-    expect(CRIMES).toHaveLength(48);
-    expect(CRIMES.filter((c) => c.tier === "petty")).toHaveLength(16);
-    expect(CRIMES.filter((c) => c.tier === "street")).toHaveLength(16);
-    expect(CRIMES.filter((c) => c.tier === "heavy")).toHaveLength(16);
+  it("ships 144 crimes as 48/48/48", () => {
+    expect(CRIMES).toHaveLength(144);
+    expect(CRIMES.filter((c) => c.tier === "petty")).toHaveLength(48);
+    expect(CRIMES.filter((c) => c.tier === "street")).toHaveLength(48);
+    expect(CRIMES.filter((c) => c.tier === "heavy")).toHaveLength(48);
+    const ids = CRIMES.map((c) => c.id);
+    expect(new Set(ids).size).toBe(144);
   });
 
   it("keeps V0 crime ids stable", () => {
@@ -44,12 +46,14 @@ describe("v1 content scale", () => {
     }
   });
 
-  it("ships 24 jobs as 8×3", () => {
-    expect(JOBS).toHaveLength(24);
+  it("ships 64 jobs across 16 careers × ranks 1–4", () => {
+    expect(JOBS).toHaveLength(64);
     const careers = Array.from(new Set(JOBS.map((j) => j.career)));
-    expect(careers).toHaveLength(8);
+    expect(careers).toHaveLength(16);
     for (const career of careers) {
-      expect(JOBS.filter((j) => j.career === career).map((j) => j.rank).sort()).toEqual([1, 2, 3]);
+      expect(JOBS.filter((j) => j.career === career).map((j) => j.rank).sort((a, b) => a - b)).toEqual([
+        1, 2, 3, 4,
+      ]);
     }
   });
 });

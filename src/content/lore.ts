@@ -1,5 +1,12 @@
 /** Nightwire lore pack — original city voice (no Torn). Codex, headlines, result copy. */
 
+import {
+  CODEX_EXTRA,
+  CRIME_RESULT_COPY_EXTRA,
+  HEADLINES_EXTRA,
+  HEIST_RESULT_COPY_EXTRA,
+} from "@/content/density/loreExtra";
+
 export type CodexCategory = "district" | "system" | "story" | "school";
 
 export type CodexEntry = {
@@ -16,7 +23,7 @@ export type ResultOutcome = "SUCCESS" | "MIXED" | "FAILED" | "JAILED" | "HOSPITA
 export type CrimeFamily = "petty" | "street" | "heavy";
 
 /** Static city ticker + newspaper desk pool */
-export const HEADLINES: string[] = [
+const HEADLINES_CORE: string[] = [
   "Glassrow lights flicker again — petty theft spikes",
   "Millstone warehouse cameras go dark for an hour",
   "Dockhands walk out — harbor slowdown",
@@ -57,7 +64,18 @@ export const HEADLINES: string[] = [
   "Lay-low tips circulate: four hours, no street moves",
   "Lawyer retainers climb with investigation stage",
   "Power grid flicker timed with festival egress — coincidence?",
+  "ATM skimmers spotted on SpireYard corners — banks deny pattern",
+  "Nightwire exchange rumor: someone hit the mesh and walked",
+  "Port crane overtime unexplained — customs shrugs",
+  "Pawn shops report surge in ‘appraised’ catalytic parts",
+  "Systems & Signals waitlist longer than Street Electives",
+  "Casino count-room overtime after a quiet Tuesday",
+  "Ambulance kit thefts rise near Red Clinic — ward silent",
+  "Fence Networks graduates disappear into quieter buyers",
+  "Yard bosses certify crane cabs — night lifts follow",
 ];
+
+export const HEADLINES: string[] = [...HEADLINES_CORE, ...HEADLINES_EXTRA];
 
 /**
  * Reactive headline templates keyed by flag id.
@@ -76,11 +94,11 @@ export const REACTIVE_HEADLINES: Record<string, string> = {
   bank_nest: "Clean nest growing — bank clerks notice quiet deposits",
   contact_favor: "Someone on the wire is answering again",
   too_loud: "Peak heat stories circulate — soft voices recommend cool-down",
-  six_rails: "All six districts stamped — traveler or tourist?",
+  six_rails: "All eight districts stamped — traveler or tourist?",
   board_collector: "Multiple boards closed — city starts using a name",
 };
 
-export const CODEX_ENTRIES: CodexEntry[] = [
+export const CODEX_ENTRIES_CORE: CodexEntry[] = [
   // —— Districts ——
   {
     id: "dist_glassrow",
@@ -231,6 +249,13 @@ export const CODEX_ENTRIES: CodexEntry[] = [
     body: "Pins, dials, and paperwork that makes entry look civic. Legal locksmith calls by day; quieter doors by night.",
     hint: "Complete a Locks & Entry course.",
   },
+  {
+    id: "school_systems",
+    category: "school",
+    title: "Systems & Signals",
+    body: "Scanners, blind spots, and mesh that belongs to whoever listens longest. Radio discipline looks civic; encrypted drops do not.",
+    hint: "Complete a Systems & Signals course.",
+  },
   // —— Story beats ——
   {
     id: "story_arrival",
@@ -304,8 +329,24 @@ export const CODEX_ENTRIES: CodexEntry[] = [
   },
 ];
 
+export const CODEX_ENTRIES: CodexEntry[] = [...CODEX_ENTRIES_CORE, ...CODEX_EXTRA];
+
+function mergeFlavorPools(
+  core: Record<CrimeFamily, Record<ResultOutcome, string[]>>,
+  extra: Record<CrimeFamily, Record<ResultOutcome, string[]>>
+): Record<CrimeFamily, Record<ResultOutcome, string[]>> {
+  const out = {} as Record<CrimeFamily, Record<ResultOutcome, string[]>>;
+  for (const family of ["petty", "street", "heavy"] as const) {
+    out[family] = {} as Record<ResultOutcome, string[]>;
+    for (const outcome of ["SUCCESS", "MIXED", "FAILED", "JAILED", "HOSPITALIZED"] as const) {
+      out[family][outcome] = [...(core[family]?.[outcome] ?? []), ...(extra[family]?.[outcome] ?? [])];
+    }
+  }
+  return out;
+}
+
 /** Flavor pools — seeded pick only; does not change odds/RNG math */
-export const CRIME_RESULT_COPY: Record<
+const CRIME_RESULT_COPY_CORE: Record<
   CrimeFamily,
   Record<ResultOutcome, string[]>
 > = {
@@ -455,7 +496,12 @@ export const CRIME_RESULT_COPY: Record<
   },
 };
 
-export const HEIST_RESULT_COPY: Record<"SUCCESS" | "MIXED" | "FAILED", string[]> = {
+export const CRIME_RESULT_COPY: Record<
+  CrimeFamily,
+  Record<ResultOutcome, string[]>
+> = mergeFlavorPools(CRIME_RESULT_COPY_CORE, CRIME_RESULT_COPY_EXTRA);
+
+const HEIST_RESULT_COPY_CORE: Record<"SUCCESS" | "MIXED" | "FAILED", string[]> = {
   SUCCESS: [
     "Board closed. City desk will invent the rest.",
     "Prep spine held — execute sang.",
@@ -478,6 +524,12 @@ export const HEIST_RESULT_COPY: Record<"SUCCESS" | "MIXED" | "FAILED", string[]>
     "City desk drafts a humiliation column.",
     "Organized noise without the music.",
   ],
+};
+
+export const HEIST_RESULT_COPY: Record<"SUCCESS" | "MIXED" | "FAILED", string[]> = {
+  SUCCESS: [...HEIST_RESULT_COPY_CORE.SUCCESS, ...HEIST_RESULT_COPY_EXTRA.SUCCESS],
+  MIXED: [...HEIST_RESULT_COPY_CORE.MIXED, ...HEIST_RESULT_COPY_EXTRA.MIXED],
+  FAILED: [...HEIST_RESULT_COPY_CORE.FAILED, ...HEIST_RESULT_COPY_EXTRA.FAILED],
 };
 
 export function getCodexEntry(id: string): CodexEntry | undefined {

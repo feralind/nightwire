@@ -1,9 +1,14 @@
+import { normalizeColorblindPack, type ColorblindPackId } from "@/game/accessibility";
+import { normalizeDifficulty, type DifficultyId } from "@/game/difficulty";
 import { syncLicenses } from "@/game/licenses";
+import { emptyMarket, type MarketState } from "@/game/market";
+import { emptyMissions, type MissionsState } from "@/game/missions";
 import {
   EMPTY_SAFEHOUSE_ROOMS,
   normalizeSafehouseRooms,
   type SafehouseRooms,
 } from "@/game/safehouse";
+import { emptyStocks, type StocksState } from "@/game/stocks";
 import type { DistrictId, HeistExecutePhase, HeistRank } from "@/game/types";
 
 export type InvestigationStage = 0 | 1 | 2 | 3 | 4;
@@ -125,6 +130,7 @@ export type LifetimeStats = {
   favorSpent: number;
   tipsBought: number;
   heistsCompleted: number;
+  missionsCompleted: number;
 };
 
 /** Per-contact dossier progress */
@@ -257,6 +263,12 @@ export type GameState = {
   power: PowerTracks;
 
   bazaar: { listings: { itemId: string; price: number; seller?: string }[]; day: number };
+  /** Peer trading board — NPC brokers + player listings */
+  market: MarketState;
+  /** District paper / speculative shares */
+  stocks: StocksState;
+  /** Contract / mission board */
+  missions: MissionsState;
   directorEvent: { id: string; label: string; until: number } | null;
 
   /** Faction reputation -100..100 */
@@ -283,6 +295,18 @@ export type GameState = {
   timeline: TimelineEntry[];
 
   density: "classic" | "comfortable";
+  /** Boosted borders / text / vitals for readability */
+  highContrast: boolean;
+  /** Colorblind-friendly palette pack (CSS data-attribute) */
+  colorblindPack: ColorblindPackId;
+  /** Gameplay difficulty / mod mode */
+  difficulty: DifficultyId;
+  /** Optional Grok / xAI city-life flavor (server-side; falls back offline) */
+  aiLife: boolean;
+  /** Adult NPC banter — enables slutty-tagged female contact/NPC voice */
+  adultNpc: boolean;
+  /** Last procedural city-life day event id (dedupe diegetic logs) */
+  cityLifeDayEventId: string | null;
 };
 
 export function emptyLifetime(district: DistrictId = "glassrow"): LifetimeStats {
@@ -308,6 +332,7 @@ export function emptyLifetime(district: DistrictId = "glassrow"): LifetimeStats 
     favorSpent: 0,
     tipsBought: 0,
     heistsCompleted: 0,
+    missionsCompleted: 0,
   };
 }
 
@@ -409,6 +434,9 @@ export function createInitialState(partial?: Partial<GameState>): GameState {
       businessStaff: 0,
     },
     bazaar: { listings: [], day: 0 },
+    market: emptyMarket(),
+    stocks: emptyStocks(),
+    missions: emptyMissions(),
     directorEvent: null,
     factionRep: {
       glass_syndicate: 0,
@@ -430,6 +458,12 @@ export function createInitialState(partial?: Partial<GameState>): GameState {
     unlockedAwards: {},
     timeline: [],
     density: "classic",
+    highContrast: false,
+    colorblindPack: "none",
+    difficulty: "standard",
+    aiLife: false,
+    adultNpc: false,
+    cityLifeDayEventId: null,
   };
   const merged = { ...base, ...partial };
   return {
@@ -463,6 +497,7 @@ export function normalizeState(s: GameState): GameState {
     tipsBought: s.lifetime?.tipsBought ?? 0,
     gigsDone: s.lifetime?.gigsDone ?? 0,
     heistsCompleted: s.lifetime?.heistsCompleted ?? 0,
+    missionsCompleted: s.lifetime?.missionsCompleted ?? 0,
   };
   // Drop legacy stub property ids that aren't in the catalog
   const ownedProperties = (s.ownedProperties ?? []).filter((id) => !id.startsWith("prop_"));
@@ -497,6 +532,29 @@ export function normalizeState(s: GameState): GameState {
     contacts: s.contacts ?? {},
     contactTips: s.contactTips ?? [],
     prepBoards: s.prepBoards ?? {},
+    market: s.market
+      ? {
+          day: s.market.day ?? 0,
+          npcListings: s.market.npcListings ?? [],
+          playerListings: s.market.playerListings ?? [],
+        }
+      : emptyMarket(),
+    stocks: s.stocks
+      ? {
+          prices: s.stocks.prices ?? emptyStocks().prices,
+          lastTickHour: s.stocks.lastTickHour ?? 0,
+          positions: s.stocks.positions ?? [],
+          dividendsEarned: s.stocks.dividendsEarned ?? 0,
+        }
+      : emptyStocks(),
+    missions: s.missions
+      ? {
+          active: s.missions.active ?? [],
+          completedIds: s.missions.completedIds ?? [],
+          failedIds: s.missions.failedIds ?? [],
+          log: s.missions.log ?? [],
+        }
+      : emptyMissions(),
     power: {
       territory: {
         glassrow: s.power?.territory?.glassrow ?? 0,
@@ -527,5 +585,12 @@ export function normalizeState(s: GameState): GameState {
     compPoints: s.compPoints ?? 0,
     casinoWinStreak: s.casinoWinStreak ?? 0,
     casinoLossStreak: s.casinoLossStreak ?? 0,
+    density: s.density === "comfortable" ? "comfortable" : "classic",
+    highContrast: s.highContrast === true,
+    colorblindPack: normalizeColorblindPack(s.colorblindPack),
+    difficulty: normalizeDifficulty(s.difficulty),
+    aiLife: s.aiLife === true,
+    adultNpc: s.adultNpc === true,
+    cityLifeDayEventId: s.cityLifeDayEventId ?? null,
   };
 }

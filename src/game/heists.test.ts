@@ -52,7 +52,7 @@ describe("organized heist content", () => {
       byDistrict.set(h.district, (byDistrict.get(h.district) ?? 0) + 1);
     }
     expect(byDistrict.size).toBe(6);
-    for (const count of byDistrict.values()) {
+    for (const count of Array.from(byDistrict.values())) {
       expect(count).toBe(4);
     }
   });
@@ -263,11 +263,8 @@ describe("heist prep flow", () => {
 
 describe("normalize backfill", () => {
   it("backfills prepBoards and heistsCompleted", () => {
-    const raw = createInitialState({ created: true }) as ReturnType<typeof createInitialState> & {
-      prepBoards?: undefined;
-    };
+    const legacy = createInitialState({ created: true });
     // Simulate legacy save missing fields
-    const legacy = { ...raw } as ReturnType<typeof createInitialState>;
     delete (legacy as { prepBoards?: unknown }).prepBoards;
     delete (legacy.lifetime as { heistsCompleted?: number }).heistsCompleted;
     const n = normalizeState(legacy);

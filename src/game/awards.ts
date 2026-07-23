@@ -1,6 +1,7 @@
 import { AWARDS, getAward } from "@/content/catalog";
 import type { GameState } from "@/game/state";
 import type { AwardDef } from "@/game/types";
+import { densityAwardConditionMet, densityAwardHint } from "@/game/densityAwards";
 
 export type AwardProgress = {
   award: AwardDef;
@@ -59,7 +60,7 @@ export function awardConditionMet(id: string, s: GameState): boolean {
     case "three_rails":
       return s.lifetime.districtsVisited.length >= 3;
     case "six_rails":
-      return s.lifetime.districtsVisited.length >= 6;
+      return s.lifetime.districtsVisited.length >= 8;
     case "alley_mark":
       return s.lifetime.attacksWon >= 1;
     case "holding_cell_grad":
@@ -92,8 +93,56 @@ export function awardConditionMet(id: string, s: GameState): boolean {
       return (s.lifetime.heistsCompleted ?? 0) >= 1;
     case "board_collector":
       return (s.lifetime.heistsCompleted ?? 0) >= 3;
-    default:
-      return false;
+    case "petty_fifty":
+      return (s.mastery.petty?.attempts ?? 0) >= 50;
+    case "street_twenty":
+      return (s.mastery.street?.attempts ?? 0) >= 20;
+    case "heavy_five":
+      return (s.mastery.heavy?.attempts ?? 0) >= 5 && (s.mastery.heavy?.cash ?? 0) > 0;
+    case "crime_century":
+      return crimeAttempts(s) >= 100;
+    case "board_five":
+      return (s.lifetime.heistsCompleted ?? 0) >= 5;
+    case "shift_fifty":
+      return s.lifetime.shiftsWorked >= 50;
+    case "gig_twenty":
+      return s.lifetime.gigsDone >= 20;
+    case "promote_three":
+      return s.lifetime.promotions >= 3;
+    case "campus_five":
+      return s.completedCourses.length >= 5;
+    case "systems_cert":
+      return s.completedCourses.includes("sy1");
+    case "fence_grad":
+      return s.completedCourses.includes("se5");
+    case "property_four":
+      return s.ownedProperties.length >= 4;
+    case "bank_25k":
+      return s.bank >= 25000 || s.lifetime.peakBank >= 25000;
+    case "networth_50k":
+      return networth(s) >= 50000 || s.lifetime.peakNetworth >= 50000;
+    case "interest_500":
+      return s.lifetime.interestEarned >= 500;
+    case "gym_fifty":
+      return s.lifetime.gymSessions >= 50;
+    case "attack_ten":
+      return s.lifetime.attacksWon >= 10;
+    case "hospital_grad":
+      return s.lifetime.attacksLost >= 1;
+    case "level_ten":
+      return s.level >= 10;
+    case "heat_100":
+      return s.lifetime.peakHeat >= 100;
+    case "contact_twelve":
+      return Object.values(s.contacts).filter((c) => c.uses > 0).length >= 12;
+    case "favor_ten":
+      return s.lifetime.contactUses >= 10;
+    case "tip_five":
+      return s.lifetime.tipsBought >= 5;
+    default: {
+      const dens = densityAwardConditionMet(id, s);
+      return dens === null ? false : dens;
+    }
   }
 }
 
@@ -134,7 +183,7 @@ export function awardHint(id: string): string {
     case "three_rails":
       return "Visit 3 districts";
     case "six_rails":
-      return "Visit all 6 districts";
+      return "Visit all 8 districts";
     case "alley_mark":
       return "Win an NPC attack";
     case "holding_cell_grad":
@@ -167,8 +216,54 @@ export function awardHint(id: string): string {
       return "Complete an organized heist";
     case "board_collector":
       return "Complete 3 organized heists";
+    case "petty_fifty":
+      return "Attempt 50 petty crimes";
+    case "street_twenty":
+      return "Attempt 20 street crimes";
+    case "heavy_five":
+      return "Succeed at 5 heavy scores";
+    case "crime_century":
+      return "Attempt 100 crimes";
+    case "board_five":
+      return "Complete 5 organized heists";
+    case "shift_fifty":
+      return "Work 50 shifts";
+    case "gig_twenty":
+      return "Complete 20 gigs";
+    case "promote_three":
+      return "Earn 3 promotions";
+    case "campus_five":
+      return "Complete 5 courses";
+    case "systems_cert":
+      return "Finish Radio Discipline (sy1)";
+    case "fence_grad":
+      return "Finish Fence Networks (se5)";
+    case "property_four":
+      return "Own 4 properties";
+    case "bank_25k":
+      return "Bank balance $25,000";
+    case "networth_50k":
+      return "Networth $50,000";
+    case "interest_500":
+      return "Earn $500 bank interest";
+    case "gym_fifty":
+      return "Train at the gym 50 times";
+    case "attack_ten":
+      return "Win 10 NPC attacks";
+    case "hospital_grad":
+      return "Lose an NPC attack";
+    case "level_ten":
+      return "Reach level 10";
+    case "heat_100":
+      return "Hit heat 100+";
+    case "contact_twelve":
+      return "Use 12 different contacts";
+    case "favor_ten":
+      return "Use contacts 10 times";
+    case "tip_five":
+      return "Buy 5 tips";
     default:
-      return "Hidden";
+      return densityAwardHint(id) ?? "Hidden";
   }
 }
 

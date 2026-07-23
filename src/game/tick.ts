@@ -1,10 +1,15 @@
-import { COURSES, getProperty } from "@/content/catalog";
+import { COURSES } from "@/content/catalog";
 import { bankInterestRate } from "@/game/careers";
+import { maybeCityLifeLogLine } from "@/game/cityLife";
+import { regenIntervalMs } from "@/game/difficulty";
+import { applyEmergenceAway } from "@/game/emergence";
 import { happyStudyFactor } from "@/game/formulas";
 import {
   grantLicenseOnCourseComplete,
   licenseWeeklyStipend,
 } from "@/game/licenses";
+import { simulateMarketBuys } from "@/game/market";
+import { expireMissions } from "@/game/missions";
 import { businessIncomeForHours } from "@/game/power";
 import { weeklyPropertyNet } from "@/game/properties";
 import { applyRivalAwayPressure } from "@/game/rival";
@@ -17,12 +22,12 @@ import {
   normalizeSafehouseRooms,
   studySpeedMult,
   vaultHeatDecayBonus,
-  vaultRaidCostMult,
 } from "@/game/safehouse";
+import { tickStocks } from "@/game/stocks";
 import type { GameState } from "@/game/state";
 
-const ENERGY_MS = 5 * 60 * 1000;
-const NERVE_MS = 5 * 60 * 1000;
+const ENERGY_MS_BASE = 5 * 60 * 1000;
+const NERVE_MS_BASE = 5 * 60 * 1000;
 
 export type TickResult = {
   state: GameState;
@@ -55,8 +60,10 @@ export function applyCatchUp(state: GameState, now = Date.now()): TickResult {
   const rooms = normalizeSafehouseRooms(s.safehouseRooms);
   s.safehouseRooms = rooms;
 
-  const energyGain = Math.floor(elapsed / ENERGY_MS);
-  const nerveGain = Math.floor(elapsed / NERVE_MS);
+  const energyMs = regenIntervalMs(ENERGY_MS_BASE, s.difficulty ?? "standard");
+  const nerveMs = regenIntervalMs(NERVE_MS_BASE, s.difficulty ?? "standard");
+  const energyGain = Math.floor(elapsed / energyMs);
+  const nerveGain = Math.floor(elapsed / nerveMs);
   const garageEnergy = Math.floor(hours * garageEnergyPerHour(rooms));
   s.energy = Math.min(s.energyMax, s.energy + energyGain + garageEnergy);
   s.nerve = Math.min(s.nerveMax, s.nerve + nerveGain);
@@ -167,26 +174,10 @@ export function applyCatchUp(state: GameState, now = Date.now()): TickResult {
     }
   }
 
-  // High heat + property → raid/bribe pressure (emergence recipe)
-  if (s.ownedProperties.length && s.heat >= 70 && hours >= 8) {
-    const risk =
-      s.ownedProperties.reduce((a, id) => a + (getProperty(id)?.raidRisk ?? 1), 0) / s.ownedProperties.length;
-    const chance = Math.min(0.35, (s.heat - 60) / 100) * risk;
-    if (unit01(s.seed, "prop_raid", Math.floor(now / 3600000) + s.ownedProperties.length) < chance) {
-      const bribe = Math.floor(400 * s.ownedProperties.length * vaultRaidCostMult(rooms));
-      if (s.street >= bribe) {
-        s.street -= bribe;
-        street.push(`Raid pressure — bribed out (−$${bribe} street)`);
-      } else if (s.clean >= bribe) {
-        s.clean -= bribe;
-        legal.push(`Raid pressure — paid quiet (−$${bribe} clean)`);
-      } else {
-        const lost = Math.min(s.clean, Math.floor(bribe / 2));
-        s.clean -= lost;
-        s.heat = Math.min(120, s.heat + 8);
-        city.push(`Property raid scare (−$${lost} clean, heat +8)`);
-      }
-    }
+  // Data-driven emergence (property raid, seize, soft away pressure, …)
+  {
+    const buckets = { legal, street, city };
+    s = applyEmergenceAway(s, hours, now, buckets);
   }
 
   // Course progress — freezes in jail; scholarship soft-suspends at high heat
@@ -299,27 +290,47 @@ export function applyCatchUp(state: GameState, now = Date.now()): TickResult {
     city.push("Warrant served — jailed");
   }
 
-  // Seizure risk
-  if (s.street > 10000 && s.heat > 50) {
-    const rolls = Math.floor(hours);
-    for (let i = 0; i < rolls; i++) {
-      if (unit01(s.seed, "seize", Math.floor(now / 3600000) + i) < 0.05) {
-        const lost = Math.floor(s.street * 0.1);
-        s.street -= lost;
-        street.push(`Street cash seized −$${lost}`);
-        break;
-      }
-    }
-  }
-
   // Rival soft pressure while away (Hour-1 feel)
   if (hours >= 8) {
     s = applyRivalAwayPressure(s, hours, now, city, street);
   }
 
+  // Market: NPC buyers fill player listings
+  if (hours >= 0.25) {
+    const sold = simulateMarketBuys(s, hours, now);
+    s = sold.state;
+    for (const line of sold.sales) street.push(line);
+  }
+
+  // Stocks-lite: drift prices + dividends
+  {
+    const stk = tickStocks(s, hours, now);
+    s = stk.state;
+    for (const line of stk.lines) {
+      if (line.includes("dividends")) legal.push(line);
+      else city.push(line);
+    }
+  }
+
+  // Mission deadlines
+  {
+    const exp = expireMissions(s, now);
+    s = exp.state;
+    for (const id of exp.expired) city.push(`Mission expired: ${id}`);
+  }
+
   if (hours >= 24 && s.investigation > 0 && s.investigation < 4) {
     s.investigation = Math.max(0, s.investigation - 1) as GameState["investigation"];
     city.push("Investigation cooled one stage");
+  }
+
+  // Procedural city-life day beat (no API) — once per calendar flip
+  {
+    const life = maybeCityLifeLogLine(s.seed, s.cityLifeDayEventId ?? null, now);
+    if (life) {
+      s.cityLifeDayEventId = life.dayEventId;
+      city.push(life.line);
+    }
   }
 
   s.lastTickAt = now;

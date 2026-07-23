@@ -84,3 +84,50 @@ export function endgameTitle(rep: Record<string, number>): string | null {
   if (top[1] >= 80) return `Street crown — ${faction.name}`;
   return `Silent partner — ${faction.name}`;
 }
+
+/** War-week only actions — heavier than peacetime Assist. */
+export type FactionWarActionDef = {
+  id: string;
+  name: string;
+  blurb: string;
+  energy: number;
+  costClean?: number;
+  costStreet?: number;
+  heat?: number;
+  repGain: number;
+  respectGain: number;
+};
+
+export const FACTION_WAR_ACTIONS: FactionWarActionDef[] = [
+  {
+    id: "run_favor",
+    name: "Run a favor",
+    blurb: "Move a package for the table. Street skim optional.",
+    energy: 8,
+    costStreet: 200,
+    repGain: 12,
+    respectGain: 1,
+  },
+  {
+    id: "fund_table",
+    name: "Fund the table",
+    blurb: "Clean envelope keeps the chain fed.",
+    energy: 4,
+    costClean: 800,
+    repGain: 10,
+    respectGain: 2,
+  },
+  {
+    id: "shadow_run",
+    name: "Shadow run",
+    blurb: "Quiet field work. Heat rises; the table notices.",
+    energy: 10,
+    heat: 4,
+    repGain: 15,
+    respectGain: 2,
+  },
+];
+
+export function getFactionWarAction(id: string): FactionWarActionDef | undefined {
+  return FACTION_WAR_ACTIONS.find((a) => a.id === id);
+}

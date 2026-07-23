@@ -64,6 +64,53 @@ import {
 } from "@/game/careers";
 import { evaluateAwards } from "@/game/awards";
 import { refreshBazaarState, sellPrice } from "@/game/bazaar";
+import { dayEventFor } from "@/game/cityLife";
+import {
+  getColorblindPack,
+  type ColorblindPackId,
+} from "@/game/accessibility";
+import {
+  getDifficulty,
+  scaleCost,
+  scaleCrimeDifficulty,
+  scaleHeatGain,
+  scalePay,
+  type DifficultyId,
+} from "@/game/difficulty";
+import {
+  clearSaveSlot,
+  getActiveSaveSlot,
+  listSaveSlotMeta,
+  readSaveSlotJson,
+  SAVE_SLOT_LABELS,
+  setActiveSaveSlot,
+  type SaveSlotId,
+  type SaveSlotMeta,
+  writeSaveSlot,
+} from "@/game/saveSlots";
+import {
+  listingFee,
+  marketBuyReasons,
+  marketListReasons,
+  refreshMarketState,
+  type MarketPlayerListing,
+} from "@/game/market";
+import {
+  ensureMissionsState,
+  missionAcceptReasons,
+  missionProgress,
+  objectiveLabel,
+  snapshotFrom,
+} from "@/game/missions";
+import { getMission } from "@/content/missions";
+import { getStock } from "@/content/stocks";
+import {
+  applyBuyShares,
+  applySellShares,
+  ensureStocksState,
+  stocksBuyReasons,
+  stocksSellReasons,
+} from "@/game/stocks";
 import {
   applyContactAction,
   applyMentorReply,
@@ -74,6 +121,13 @@ import {
 import { canDoGig, computeGigPay } from "@/game/gigs";
 import { licenseJobPayBonus } from "@/game/licenses";
 import { masteryOddsBonus, masteryTitleFor } from "@/game/mastery";
+import {
+  applyUndoSnapshot,
+  captureUndoSnapshot,
+  undoIsAlive,
+  type UndoKind,
+  type UndoSnapshot,
+} from "@/game/undo";
 import {
   canBuyBusiness,
   canBuyPolitical,
@@ -95,7 +149,13 @@ import {
   territoryInvestCost,
   territoryOddsBonus,
 } from "@/game/power";
-import { FACTIONS, assistPay, currentWar, warWeekBonus } from "@/game/faction";
+import {
+  FACTIONS,
+  assistPay,
+  currentWar,
+  getFactionWarAction,
+  warWeekBonus,
+} from "@/game/faction";
 import { activeBounties, refreshBounties } from "@/game/bounties";
 import { resolveRace } from "@/game/raceway";
 import { canBuyProperty } from "@/game/properties";
@@ -114,8 +174,15 @@ import {
 } from "@/game/safehouse";
 import { applyCallRitual, applyRitualCashBonus, ensureDailyRitual } from "@/game/ritual";
 import { maybeApplyRivalEvents } from "@/game/rival";
+import { pickDirectorEvent } from "@/game/emergence";
 import { pickWeighted, rollD10000, unit01 } from "@/game/rng";
 import { planStreetShopBuy } from "@/game/shops";
+import {
+  getShop,
+  shopAllowsStreet,
+  shopPrice,
+  shopStock,
+} from "@/content/shops";
 import { applyExecuteChoice, applyPrepStage } from "@/game/heists";
 import { pickCrimeResultLine, pickHeistResultLine, syncTimeline } from "@/game/lore";
 import { createInitialState, normalizeState as normalizeStateRaw, type AwayModalState, type GameState, type ResultModalState } from "@/game/state";
@@ -140,6 +207,8 @@ type UIState = {
   awayModal: AwayModalState;
   awardModal: { name: string; blurb: string }[] | null;
   clock: number;
+  /** Short-lived undo window — not persisted */
+  undoPending: UndoSnapshot | null;
 };
 
 type Actions = {
@@ -148,6 +217,8 @@ type Actions = {
   dismissResult: () => void;
   dismissAway: () => void;
   dismissAwards: () => void;
+  undoLastAction: () => boolean;
+  clearUndo: () => void;
   attemptCrime: (crimeId: string) => void;
   workShift: () => void;
   doGig: (gigId: string) => void;
@@ -164,7 +235,7 @@ type Actions = {
   bankDeposit: (amount: number, from: "clean" | "street") => void;
   bankWithdraw: (amount: number) => void;
   cleanMoney: (amount: number) => void;
-  buyItem: (itemId: string, withStreet?: boolean) => void;
+  buyItem: (itemId: string, withStreet?: boolean, shopId?: string) => void;
   useItem: (itemId: string) => void;
   equipItem: (itemId: string) => void;
   buyProperty: (propertyId: string) => void;
@@ -178,6 +249,15 @@ type Actions = {
   refreshBazaar: () => void;
   bazaarBuy: (listingIndex: number) => void;
   bazaarSell: (itemId: string) => void;
+  refreshMarket: () => void;
+  marketBuyNpc: (listingId: string) => void;
+  marketListItem: (itemId: string, ask: number) => void;
+  marketCancelListing: (listingId: string) => void;
+  stocksBuy: (stockId: string, shares: number) => void;
+  stocksSell: (stockId: string, shares: number) => void;
+  acceptMission: (missionId: string) => void;
+  claimMission: (missionId: string) => void;
+  abandonMission: (missionId: string) => void;
   generateRitual: () => void;
   advanceRitual: (kind: string) => void;
   callRitual: () => void;
@@ -191,6 +271,7 @@ type Actions = {
   executeHeist: (heistId: string, choice: HeistExecuteChoice) => void;
   enterRace: (raceId: string) => void;
   assistFaction: (factionId: string) => void;
+  factionWarAction: (factionId: string, actionId: string) => void;
   refreshBountyBoard: () => void;
   claimBountyAttack: (npcId: string) => void;
   playCasino: (tableId: string) => void;
@@ -198,7 +279,19 @@ type Actions = {
   exportSave: () => string;
   importSave: (json: string) => void;
   resetSave: () => void;
+  /** Snapshot live save into local slot A/B/C */
+  saveToSlot: (id: SaveSlotId) => SaveSlotMeta;
+  /** Load a local slot into the live game (overwrites current) */
+  loadFromSlot: (id: SaveSlotId) => boolean;
+  clearSlot: (id: SaveSlotId) => void;
+  listSlots: () => SaveSlotMeta[];
+  getActiveSlot: () => SaveSlotId | null;
   setDensity: (d: "classic" | "comfortable") => void;
+  setHighContrast: (on: boolean) => void;
+  setColorblindPack: (id: ColorblindPackId) => void;
+  setDifficulty: (d: DifficultyId) => void;
+  setAiLife: (on: boolean) => void;
+  setAdultNpc: (on: boolean) => void;
   getCrimeOddsView: (crimeId: string) => {
     locked: boolean;
     reasons: { label: string; href?: string }[];
@@ -212,6 +305,10 @@ function pushLog(s: GameState, text: string, kind: "system" | "diegetic" | "resu
   const id = s.logSeq + 1;
   const entry = { id, ts: Date.now(), text, kind };
   return { ...s, logSeq: id, logs: [entry, ...s.logs].slice(0, 200) };
+}
+
+function armUndo(s: GameState, label: string, kind: UndoKind): UndoSnapshot {
+  return captureUndoSnapshot(s, label, kind);
 }
 
 function withPeaks(s: GameState): GameState {
@@ -366,6 +463,10 @@ function ensureBazaar(s: GameState): GameState {
   return refreshBazaarState(s);
 }
 
+function ensureMarket(s: GameState): GameState {
+  return refreshMarketState(s);
+}
+
 function ensureRitual(s: GameState): GameState {
   return ensureDailyRitual(s);
 }
@@ -378,6 +479,7 @@ export const useGame = create<GameState & UIState & Actions>()(
       awayModal: null,
       awardModal: null,
       clock: Date.now(),
+      undoPending: null,
 
       createCharacter: (name, district, background) => {
         let s = createInitialState({
@@ -394,8 +496,11 @@ export const useGame = create<GameState & UIState & Actions>()(
         s = pushLog(s, "Mentor: Start small. Petty work. Keep your head.", "diegetic");
         s = ensureRitual(s);
         s = ensureBazaar(s);
+        s = ensureMarket(s);
+        s = ensureStocksState(s);
+        s = ensureMissionsState(s);
         s = syncTimeline(s);
-        set({ ...s, resultModal: null, awayModal: null, awardModal: null });
+        set({ ...s, resultModal: null, awayModal: null, awardModal: null, undoPending: null });
       },
 
       tick: () => {
@@ -406,15 +511,13 @@ export const useGame = create<GameState & UIState & Actions>()(
         const { state, awaySummary } = applyCatchUp(prev, now);
         // Ritual first; bazaar after director so mid-day events can reprice
         let s = ensureRitual(state);
+        if (s.cityLifeDayEventId && s.cityLifeDayEventId !== prev.cityLifeDayEventId) {
+          const day = dayEventFor(s.seed, now);
+          s = pushLog(s, `City life: ${day.title} — ${day.body}`, "diegetic");
+        }
         const directorBeforeId = s.directorEvent?.id ?? null;
         if (!s.directorEvent && unit01(s.seed, "director", Math.floor(now / 600000)) < 0.02) {
-          const events = [
-            { id: "outage", label: "Power outage in Glassrow" },
-            { id: "strike", label: "Harbor strike in DocksReach" },
-            { id: "festival", label: "Festival crowds in Glassrow" },
-            { id: "sweep", label: "Police sweep" },
-          ];
-          const ev = events[Math.floor(now / 600000) % events.length];
+          const ev = pickDirectorEvent(s.seed, Math.floor(now / 600000));
           s = {
             ...pushLog(s, `Director: ${ev.label}`, "system"),
             directorEvent: { ...ev, until: now + 30 * 60 * 1000 },
@@ -425,6 +528,9 @@ export const useGame = create<GameState & UIState & Actions>()(
         }
         const directorChanged = directorBeforeId !== (s.directorEvent?.id ?? null);
         s = refreshBazaarState(s, directorChanged);
+        s = refreshMarketState(s, directorChanged);
+        s = ensureStocksState(s);
+        s = ensureMissionsState(s);
         const awardPass = applyAwardPass(s);
         s = awardPass.state;
 
@@ -455,6 +561,7 @@ export const useGame = create<GameState & UIState & Actions>()(
           s.activeCourseId !== prev.activeCourseId ||
           s.district !== prev.district ||
           s.directorEvent?.id !== prev.directorEvent?.id ||
+          s.cityLifeDayEventId !== prev.cityLifeDayEventId ||
           s.wounds.arm !== prev.wounds.arm ||
           s.wounds.leg !== prev.wounds.leg ||
           Math.floor(s.stress) !== Math.floor(prev.stress) ||
@@ -488,6 +595,24 @@ export const useGame = create<GameState & UIState & Actions>()(
       dismissAway: () => set({ awayModal: null }),
       dismissAwards: () => set({ awardModal: null }),
 
+      undoLastAction: () => {
+        const snap = get().undoPending;
+        if (!undoIsAlive(snap)) {
+          set({ undoPending: null });
+          return false;
+        }
+        let s = applyUndoSnapshot(normalizeState(get()), snap!);
+        s = pushLog(s, `Undo: ${snap!.label}`, "system");
+        set({
+          ...s,
+          undoPending: null,
+          resultModal: null,
+        });
+        return true;
+      },
+
+      clearUndo: () => set({ undoPending: null }),
+
       getCrimeOddsView: (crimeId) => {
         const s = get();
         const crime = getCrime(crimeId);
@@ -516,20 +641,21 @@ export const useGame = create<GameState & UIState & Actions>()(
         const heatPenalty = s.heat * 0.15;
         const stressPenalty = stressOddsPenalty(s.stress) + happyCrimeOddsPenalty(s.happy);
         const tipBonus = contactTipOddsBonus(s.contactTips ?? [], crime);
+        const diff = getDifficulty(s.difficulty);
         const { odds, modifiers } = computeCrimeOdds({
           dex: s.dex,
           spd: s.spd,
           str: s.str,
           def: s.def,
           level: s.level,
-          toolMod: equippedToolMod(s) + masteryBonus,
+          toolMod: equippedToolMod(s) + masteryBonus + diff.oddsSkillBonus,
           eduMod: eduMod + jobMod,
           districtMod: districtMod / 5,
           hourMod,
           chainMod,
           heatPenalty,
           stressPenalty: stressPenalty / 5,
-          difficulty: crime.difficulty,
+          difficulty: scaleCrimeDifficulty(crime.difficulty, s.difficulty ?? "standard"),
         });
         const territory = s.power.territory[s.district] ?? 0;
         const terrOdds = territoryOddsBonus(territory);
@@ -542,6 +668,9 @@ export const useGame = create<GameState & UIState & Actions>()(
         const finalOdds = clamp(odds + terrOdds + tipOdds + mastOdds + respOdds - woundOdds, 0.05, 0.9);
         const tipMods = [
           ...modifiers,
+          ...(diff.oddsSkillBonus !== 0
+            ? [{ label: `Difficulty (${diff.label})`, value: diff.oddsSkillBonus }]
+            : []),
           ...(terrOdds > 0
             ? [{ label: `Territory ${Math.floor(territory)}%`, value: terrOdds * 100 }]
             : []),
@@ -570,13 +699,15 @@ export const useGame = create<GameState & UIState & Actions>()(
         if (view.locked) return;
         if (s.nerve < crime.nerve) return;
 
+        const undoSnap = armUndo(s, `Crime: ${crime.name}`, "crime");
         s = { ...s, nerve: s.nerve - crime.nerve, actionIndex: s.actionIndex + 1, lastCrimeId: crimeId };
         s.lifetime = {
           ...s.lifetime,
           crimesAttempted: s.lifetime.crimesAttempted + 1,
         };
-        // heat while enrolled
-        const heatMult = s.activeCourseId ? 1.25 : 1;
+        // heat while enrolled + difficulty mode
+        const heatMult =
+          (s.activeCourseId ? 1.25 : 1) * getDifficulty(s.difficulty).heatMult;
         const actionKey = `crime:${crimeId}`;
         const r = rollD10000(s.seed, actionKey, s.actionIndex);
         const successThreshold = Math.floor(view.odds * 10000);
@@ -691,7 +822,7 @@ export const useGame = create<GameState & UIState & Actions>()(
 
         lines.push(`${cash >= 0 ? "+" : ""}${formatMoney(cash)} street`);
         if (lifeDelta) lines.push(`Life ${lifeDelta}`);
-        lines.push(`Heat +${crime.heat}`);
+        lines.push(`Heat +${Math.round(scaleHeatGain(crime.heat, s.difficulty ?? "standard"))}`);
 
         s = pushLog(s, `${title}: ${crime.name} (${formatMoney(cash)})`, "result");
         s = maybeRival(s);
@@ -704,6 +835,7 @@ export const useGame = create<GameState & UIState & Actions>()(
 
         set({
           ...s,
+          undoPending: undoSnap,
           awardModal: awardPass.unlocked.length ? awardModalPayload(awardPass.unlocked) : get().awardModal,
           resultModal: {
             title,
@@ -784,6 +916,7 @@ export const useGame = create<GameState & UIState & Actions>()(
         if (s.energy < job.energy) return;
         if (s.shiftsThisWeek >= 40) return;
 
+        const undoSnap = armUndo(s, `Shift: ${job.title}`, "job");
         const quality = pickWeighted(s.seed, "shift", s.actionIndex + 1, {
           Poor: 20,
           Standard: 40,
@@ -795,7 +928,10 @@ export const useGame = create<GameState & UIState & Actions>()(
         const districtBonus = job.districtBias.includes(s.district) ? 1.1 : 1;
         const courseBonus = 1 + s.completedCourses.reduce((a, id) => a + ((getCourse(id)?.jobPayBonus ?? 0) / 100), 0);
         const licenseBonus = 1 + licenseJobPayBonus(s.licenses) / 100;
-        let pay = Math.round(job.basePay * mult * districtBonus * courseBonus * licenseBonus * happyPen);
+        let pay = scalePay(
+          Math.round(job.basePay * mult * districtBonus * courseBonus * licenseBonus * happyPen),
+          s.difficulty ?? "standard"
+        );
         const xpGain = Math.round(10 * mult);
 
         {
@@ -866,6 +1002,7 @@ export const useGame = create<GameState & UIState & Actions>()(
         }
         set({
           ...s,
+          undoPending: undoSnap,
           awardModal: awardPass.unlocked.length ? awardModalPayload(awardPass.unlocked) : get().awardModal,
           resultModal: { title: "SUCCESS", lines, cashDelta: pay, repeatable: { type: "job", id: s.jobId! } },
         });
@@ -879,18 +1016,22 @@ export const useGame = create<GameState & UIState & Actions>()(
         if (actionBlocked(s)) return;
         if (!canDoGig(gig, s)) return;
 
+        const undoSnap = armUndo(s, `Gig: ${gig.name}`, "gig");
         const quality = pickWeighted(s.seed, "gig", s.actionIndex + 1, {
           Poor: 18,
           Standard: 42,
           Good: 28,
           Excellent: 12,
         }) as "Poor" | "Standard" | "Good" | "Excellent";
-        let pay = computeGigPay(gig, {
-          quality,
-          district: s.district,
-          completedCourses: s.completedCourses,
-          happy: s.happy,
-        });
+        let pay = scalePay(
+          computeGigPay(gig, {
+            quality,
+            district: s.district,
+            completedCourses: s.completedCourses,
+            happy: s.happy,
+          }),
+          s.difficulty ?? "standard"
+        );
 
         {
           const boosted = applyRitualCashBonus(s, "gig", pay);
@@ -944,6 +1085,7 @@ export const useGame = create<GameState & UIState & Actions>()(
         }
         set({
           ...s,
+          undoPending: undoSnap,
           awardModal: awardPass.unlocked.length ? awardModalPayload(awardPass.unlocked) : get().awardModal,
           resultModal: {
             title: "SUCCESS",
@@ -1078,30 +1220,33 @@ export const useGame = create<GameState & UIState & Actions>()(
       payMedical: () => {
         let s: GameState = { ...get() };
         if (!s.hospitalUntil || Date.now() >= s.hospitalUntil) return;
-        const cost = medicalCost(s.district, s.heat);
+        const cost = scaleCost(medicalCost(s.district, s.heat), s.difficulty ?? "standard");
         if (s.clean < cost) return;
+        const undoSnap = armUndo(s, "Medical discharge", "other");
         s.clean -= cost;
         s.hospitalUntil = null;
         s.hospitalReason = null;
         s.wounds = { arm: 0, leg: 0 };
         s.life = Math.max(s.life, 60);
         s = pushLog(s, `Paid medical (${formatMoney(cost)}) — discharged early.`, "system");
-        set(s);
+        set({ ...s, undoPending: undoSnap });
       },
 
       payBail: () => {
         let s: GameState = { ...get() };
         if (!s.jailUntil || Date.now() >= s.jailUntil) return;
-        const bail = Math.round(
-          bailCost(s.heat, s.investigation) * politicalBailMult(s.power.politicalRung)
+        const bail = scaleCost(
+          Math.round(bailCost(s.heat, s.investigation) * politicalBailMult(s.power.politicalRung)),
+          s.difficulty ?? "standard"
         );
         if (s.clean < bail) return;
+        const undoSnap = armUndo(s, "Bail", "other");
         s.clean -= bail;
         s.jailUntil = null;
         s.jailReason = null;
         s.heat = Math.max(0, s.heat - 5);
         s = pushLog(s, `Bail posted (${formatMoney(bail)}).`, "system");
-        set(s);
+        set({ ...s, undoPending: undoSnap });
       },
 
       attackNpc: (npcId) => {
@@ -1286,6 +1431,7 @@ export const useGame = create<GameState & UIState & Actions>()(
       bankDeposit: (amount, from) => {
         let s: GameState = { ...get() };
         if (amount <= 0) return;
+        const undoSnap = armUndo(s, `Bank deposit (${from})`, "bank");
         if (from === "clean") {
           if (s.clean < amount) return;
           s.clean -= amount;
@@ -1303,6 +1449,7 @@ export const useGame = create<GameState & UIState & Actions>()(
         s = awardPass.state;
         set({
           ...s,
+          undoPending: undoSnap,
           awardModal: awardPass.unlocked.length ? awardModalPayload(awardPass.unlocked) : get().awardModal,
         });
       },
@@ -1310,10 +1457,11 @@ export const useGame = create<GameState & UIState & Actions>()(
       bankWithdraw: (amount) => {
         let s: GameState = { ...get() };
         if (amount <= 0 || s.bank < amount) return;
+        const undoSnap = armUndo(s, "Bank withdraw", "bank");
         s.bank -= amount;
         s.clean += amount;
         s = pushLog(s, `Bank withdraw ${formatMoney(amount)}`, "system");
-        set(s);
+        set({ ...s, undoPending: undoSnap });
       },
 
       cleanMoney: (amount) => {
@@ -1331,7 +1479,7 @@ export const useGame = create<GameState & UIState & Actions>()(
         set(s);
       },
 
-      buyItem: (itemId, withStreet = false) => {
+      buyItem: (itemId, withStreet = false, shopId) => {
         let s: GameState = normalizeState(get());
         const item = getItem(itemId);
         if (!item) return;
@@ -1342,12 +1490,44 @@ export const useGame = create<GameState & UIState & Actions>()(
           set(s);
           return;
         }
+        const shop = shopId ? getShop(shopId) : undefined;
+        if (shopId && !shop) {
+          s = pushLog(s, "Unknown shop.", "system");
+          set(s);
+          return;
+        }
+        if (shop && shop.district !== s.district) {
+          s = pushLog(s, `Travel to ${shop.district} to shop at ${shop.name}.`, "system");
+          set(s);
+          return;
+        }
+        if (shop && !shopStock(shop).some((i) => i.id === itemId)) {
+          s = pushLog(s, `${shop.name} doesn't stock that.`, "system");
+          set(s);
+          return;
+        }
         const district = getDistrict(s.district);
-        const price = item.baseValue;
+        const base = shop ? shopPrice(shop, item.baseValue) : item.baseValue;
+        const price = scaleCost(base, s.difficulty ?? "standard");
+        const undoSnap = armUndo(s, `Buy: ${item.name}`, "buy");
+        const eliteBlock = shop
+          ? !shopAllowsStreet(shop)
+          : district?.shopStyle === "elite";
         if (withStreet) {
+          if (eliteBlock) {
+            s = pushLog(s, "Elite shop — clean only", "system");
+            set(s);
+            return;
+          }
+          // Named shops: use shop payment, not district shopStyle (elite districts can host street_ok counters later).
+          const planShopStyle = shop
+            ? shopAllowsStreet(shop)
+              ? "street"
+              : "elite"
+            : district?.shopStyle;
           const plan = planStreetShopBuy({
             district: s.district,
-            shopStyle: district?.shopStyle,
+            shopStyle: planShopStyle,
             street: s.street,
             streetSpendVisit: s.streetSpendVisit,
             shopSpendDistrict: s.shopSpendDistrict,
@@ -1366,13 +1546,15 @@ export const useGame = create<GameState & UIState & Actions>()(
           s.clean -= price;
         }
         s = addItem(s, itemId);
-        s = pushLog(s, `Bought ${item.name}${withStreet ? " (street)" : ""}`, "system");
-        set(s);
+        const where = shop ? ` @ ${shop.name}` : "";
+        s = pushLog(s, `Bought ${item.name}${withStreet ? " (street)" : ""}${where}`, "system");
+        set({ ...s, undoPending: undoSnap });
       },
 
       useItem: (itemId) => {
         let s: GameState = { ...get() };
         if (!hasItem(s, itemId)) return;
+        const undoSnap = armUndo(s, `Use: ${getItem(itemId)?.name ?? itemId}`, "use");
         if (itemId === "street_meds") {
           s.life = Math.min(s.lifeMax, s.life + 15);
           s = removeItem(s, itemId);
@@ -1390,15 +1572,17 @@ export const useGame = create<GameState & UIState & Actions>()(
           s.investigation = Math.max(0, (s.investigation - 1) as 0 | 1 | 2 | 3 | 4) as 0 | 1 | 2 | 3 | 4;
           s = removeItem(s, itemId);
         } else return;
-        set(s);
+        set({ ...s, undoPending: undoSnap });
       },
 
       equipItem: (itemId) => {
         const s: GameState = { ...get() };
+        if (!hasItem(s, itemId)) return;
+        const undoSnap = armUndo(s, `Equip: ${getItem(itemId)?.name ?? itemId}`, "equip");
         const inv = s.inventory.map((i) =>
           i.itemId === itemId ? { ...i, equipped: !i.equipped } : i
         );
-        set({ ...s, inventory: inv });
+        set({ ...s, inventory: inv, undoPending: undoSnap });
       },
 
       buyProperty: (propertyId) => {
@@ -1734,6 +1918,237 @@ export const useGame = create<GameState & UIState & Actions>()(
         set(s);
       },
 
+      refreshMarket: () => set(ensureMarket(get())),
+
+      marketBuyNpc: (listingId) => {
+        let s: GameState = ensureMarket(get());
+        const listing = s.market.npcListings.find((l) => l.id === listingId);
+        if (!listing) return;
+        if (marketBuyReasons(listing, s).length) return;
+        const rooms = normalizeSafehouseRooms(s.safehouseRooms);
+        s.safehouseRooms = rooms;
+        if (!canAddInventoryStack(rooms, s.inventory.length, hasItem(s, listing.itemId))) {
+          s = pushLog(s, `Stash full — upgrade Vault at /safehouse`, "system");
+          set(s);
+          return;
+        }
+        if (listing.ledger === "street") s.street -= listing.price;
+        else s.clean -= listing.price;
+        s = addItem(s, listing.itemId);
+        s.market = {
+          ...s.market,
+          npcListings: s.market.npcListings.filter((l) => l.id !== listingId),
+        };
+        s.actionIndex += 1;
+        s = pushLog(
+          s,
+          `Market bought ${getItem(listing.itemId)?.name} from ${listing.seller} (${listing.ledger})`,
+          "system"
+        );
+        set(s);
+      },
+
+      marketListItem: (itemId, ask) => {
+        let s: GameState = ensureMarket(get());
+        if (marketListReasons(itemId, ask, s).length) return;
+        const fee = listingFee(ask);
+        if (s.clean >= fee) s.clean -= fee;
+        else {
+          const rest = fee - s.clean;
+          s.clean = 0;
+          s.street = Math.max(0, s.street - rest);
+        }
+        s = removeItem(s, itemId);
+        const listing: MarketPlayerListing = {
+          id: `pl_${s.actionIndex}_${itemId}_${Date.now()}`,
+          itemId,
+          ask: Math.floor(ask),
+          listedAt: Date.now(),
+        };
+        s.market = {
+          ...s.market,
+          playerListings: [...s.market.playerListings, listing],
+        };
+        s.actionIndex += 1;
+        s = pushLog(
+          s,
+          `Listed ${getItem(itemId)?.name} at ${formatMoney(ask)} (−${formatMoney(fee)} fee)`,
+          "system"
+        );
+        set(s);
+      },
+
+      marketCancelListing: (listingId) => {
+        let s: GameState = ensureMarket(get());
+        const listing = s.market.playerListings.find((l) => l.id === listingId);
+        if (!listing) return;
+        const rooms = normalizeSafehouseRooms(s.safehouseRooms);
+        s.safehouseRooms = rooms;
+        if (!canAddInventoryStack(rooms, s.inventory.length, hasItem(s, listing.itemId))) {
+          s = pushLog(s, `Stash full — cannot reclaim listing`, "system");
+          set(s);
+          return;
+        }
+        s = addItem(s, listing.itemId);
+        s.market = {
+          ...s.market,
+          playerListings: s.market.playerListings.filter((l) => l.id !== listingId),
+        };
+        s = pushLog(s, `Cancelled listing — ${getItem(listing.itemId)?.name} returned`, "system");
+        set(s);
+      },
+
+      stocksBuy: (stockId, shares) => {
+        let s: GameState = ensureStocksState(get());
+        const def = getStock(stockId);
+        if (!def) return;
+        if (stocksBuyReasons(def, shares, s).length) return;
+        const result = applyBuyShares(s, stockId, shares);
+        if (!result) return;
+        s = pushLog(
+          result.state,
+          `Bought ${shares} ${def.ticker} (−${formatMoney(result.cost)} clean)`,
+          "system"
+        );
+        set(s);
+      },
+
+      stocksSell: (stockId, shares) => {
+        let s: GameState = ensureStocksState(get());
+        if (stocksSellReasons(stockId, shares, s).length) return;
+        const def = getStock(stockId);
+        const result = applySellShares(s, stockId, shares);
+        if (!result) return;
+        const sign = result.pnl >= 0 ? "+" : "";
+        s = pushLog(
+          result.state,
+          `Sold ${shares} ${def?.ticker ?? stockId} (+${formatMoney(result.proceeds)}, P/L ${sign}${formatMoney(result.pnl)})`,
+          "system"
+        );
+        set(s);
+      },
+
+      acceptMission: (missionId) => {
+        let s: GameState = ensureMissionsState(get());
+        const mission = getMission(missionId);
+        if (!mission) return;
+        if (missionAcceptReasons(mission, s).length) return;
+        if (mission.energyCost) s.energy -= mission.energyCost;
+        if (mission.nerveCost) s.nerve -= mission.nerveCost;
+        const acceptedAt = Date.now();
+        const deadlineAt = mission.deadlineHours
+          ? acceptedAt + mission.deadlineHours * 3600 * 1000
+          : null;
+        s.missions = {
+          ...s.missions,
+          active: [
+            ...s.missions.active,
+            {
+              missionId,
+              acceptedAt,
+              deadlineAt,
+              snapshot: snapshotFrom(s),
+            },
+          ],
+        };
+        s.actionIndex += 1;
+        s = pushLog(s, `Accepted mission: ${mission.name}`, "diegetic");
+        set({
+          ...s,
+          resultModal: {
+            title: "SUCCESS",
+            lines: [
+              `Contract: ${mission.name}`,
+              ...mission.objectives.map((o) => `• ${objectiveLabel(o)}`),
+              deadlineAt ? `Deadline ${new Date(deadlineAt).toLocaleString()}` : "No hard deadline",
+            ],
+            cashDelta: 0,
+          },
+        });
+      },
+
+      claimMission: (missionId) => {
+        let s: GameState = ensureMissionsState(get());
+        const active = s.missions.active.find((a) => a.missionId === missionId);
+        const mission = getMission(missionId);
+        if (!active || !mission) return;
+        const prog = missionProgress(mission, s, active.snapshot);
+        if (!prog.complete) return;
+
+        let payout = 0;
+        if (mission.rewards.clean) {
+          s.clean += mission.rewards.clean;
+          payout += mission.rewards.clean;
+        }
+        if (mission.rewards.street) {
+          s.street += mission.rewards.street;
+          payout += mission.rewards.street;
+        }
+        if (mission.rewards.xp) s = addXp(s, mission.rewards.xp);
+        if (mission.rewards.itemId) s = addItem(s, mission.rewards.itemId);
+        if (mission.rewards.respect) {
+          s.power = { ...s.power, respect: s.power.respect + mission.rewards.respect };
+        }
+        if (mission.rewards.legitimacy) {
+          s.legitimacy = Math.min(100, s.legitimacy + mission.rewards.legitimacy);
+        }
+
+        s.missions = {
+          ...s.missions,
+          active: s.missions.active.filter((a) => a.missionId !== missionId),
+          completedIds: Array.from(new Set([...s.missions.completedIds, missionId])),
+          log: [
+            { missionId, outcome: "complete" as const, at: Date.now(), payout },
+            ...s.missions.log,
+          ].slice(0, 24),
+        };
+        s.lifetime = {
+          ...s.lifetime,
+          missionsCompleted: (s.lifetime.missionsCompleted ?? 0) + 1,
+        };
+        s.actionIndex += 1;
+        s = updateIdentity(s);
+        const lines = [
+          `Completed ${mission.name}`,
+          mission.rewards.clean ? `+${formatMoney(mission.rewards.clean)} clean` : null,
+          mission.rewards.street ? `+${formatMoney(mission.rewards.street)} street` : null,
+          mission.rewards.xp ? `+${mission.rewards.xp} XP` : null,
+          mission.rewards.itemId ? `Item: ${getItem(mission.rewards.itemId)?.name}` : null,
+        ].filter(Boolean) as string[];
+        const awardPass = applyAwardPass(pushLog(s, `Mission complete: ${mission.name}`, "diegetic"));
+        s = awardPass.state;
+        set({
+          ...s,
+          resultModal: {
+            title: "SUCCESS",
+            lines: [...lines, ...awardPass.unlocked.map((a) => `Award: ${a.name}`)],
+            cashDelta: payout,
+          },
+          awardModal: awardPass.unlocked.length ? awardModalPayload(awardPass.unlocked) : get().awardModal,
+        });
+      },
+
+      abandonMission: (missionId) => {
+        let s: GameState = ensureMissionsState(get());
+        const active = s.missions.active.find((a) => a.missionId === missionId);
+        const mission = getMission(missionId);
+        if (!active || !mission) return;
+        if (mission.failPenalty?.heat) s.heat = Math.min(120, s.heat + mission.failPenalty.heat);
+        if (mission.failPenalty?.street) s.street = Math.max(0, s.street - mission.failPenalty.street);
+        if (mission.failPenalty?.clean) s.clean = Math.max(0, s.clean - mission.failPenalty.clean);
+        s.missions = {
+          ...s.missions,
+          active: s.missions.active.filter((a) => a.missionId !== missionId),
+          failedIds: Array.from(new Set([...s.missions.failedIds, missionId])),
+          log: [
+            { missionId, outcome: "abandon" as const, at: Date.now(), payout: 0 },
+            ...s.missions.log,
+          ].slice(0, 24),
+        };
+        s = pushLog(s, `Abandoned mission: ${mission.name}`, "system");
+        set(s);
+      },
+
       generateRitual: () => set(ensureRitual(get())),
 
       advanceRitual: () => {},
@@ -2025,6 +2440,78 @@ export const useGame = create<GameState & UIState & Actions>()(
         });
       },
 
+      factionWarAction: (factionId, actionId) => {
+        let s: GameState = normalizeState(get());
+        if (!s.created || actionBlocked(s)) return;
+        const faction = FACTIONS.find((f) => f.id === factionId);
+        const action = getFactionWarAction(actionId);
+        if (!faction || !action) return;
+        const war = currentWar();
+        if (!war || (war.a !== factionId && war.b !== factionId)) {
+          set(pushLog(s, "War actions only during that table's war week.", "system"));
+          return;
+        }
+        if (s.energy < action.energy) {
+          set(pushLog(s, `Need ${action.energy} energy.`, "system"));
+          return;
+        }
+        const costClean = action.costClean ?? 0;
+        const costStreet = action.costStreet ?? 0;
+        if (s.clean < costClean) {
+          set(pushLog(s, "Need more clean cash.", "system"));
+          return;
+        }
+        if (s.street < costStreet) {
+          set(pushLog(s, "Need more street cash.", "system"));
+          return;
+        }
+        const week = war.week;
+        let assists = s.factionAssistsWar;
+        if (s.factionWarWeek !== week) assists = 0;
+        const rep = s.factionRep[factionId] ?? 0;
+        const nextRep = clamp(rep + action.repGain, -100, 100);
+        const rivalId = war.a === factionId ? war.b : war.b === factionId ? war.a : null;
+        const nextFactionRep = { ...s.factionRep, [factionId]: nextRep };
+        if (rivalId) {
+          nextFactionRep[rivalId] = clamp((nextFactionRep[rivalId] ?? 0) - 4, -100, 100);
+        }
+        s = {
+          ...s,
+          energy: s.energy - action.energy,
+          clean: s.clean - costClean,
+          street: s.street - costStreet,
+          heat: Math.min(120, s.heat + (action.heat ?? 0)),
+          factionRep: nextFactionRep,
+          factionAssistsWar: assists + 1,
+          factionWarWeek: week,
+          actionIndex: s.actionIndex + 1,
+          power: {
+            ...s.power,
+            respect: s.power.respect + action.respectGain,
+          },
+        };
+        s = pushLog(
+          s,
+          `War: ${action.name} for ${faction.name} (rep ${nextRep}, chain ${assists + 1})`,
+          "result"
+        );
+        set({
+          ...s,
+          resultModal: {
+            title: "SUCCESS",
+            lines: [
+              `${faction.name} — ${action.name}.`,
+              action.blurb,
+              `Rep ${rep} → ${nextRep} · chain ${assists + 1}`,
+              costClean ? `−${formatMoney(costClean)} clean` : "",
+              costStreet ? `−${formatMoney(costStreet)} street` : "",
+              action.heat ? `Heat +${action.heat}` : "",
+            ].filter(Boolean),
+            cashDelta: -(costClean + costStreet),
+          },
+        });
+      },
+
       refreshBountyBoard: () => {
         let s: GameState = normalizeState(get());
         if (!s.created) return;
@@ -2179,6 +2666,7 @@ export const useGame = create<GameState & UIState & Actions>()(
             resultModal: null,
             awayModal: null,
             awardModal: null,
+            undoPending: null,
             clock: Date.now(),
           });
         } catch {
@@ -2187,18 +2675,103 @@ export const useGame = create<GameState & UIState & Actions>()(
       },
 
       resetSave: () =>
-        set({ ...createInitialState(), resultModal: null, awayModal: null, awardModal: null, clock: Date.now() }),
+        set({
+          ...createInitialState(),
+          resultModal: null,
+          awayModal: null,
+          awardModal: null,
+          undoPending: null,
+          clock: Date.now(),
+        }),
+
+      saveToSlot: (id) => {
+        const json = get().exportSave();
+        const meta = writeSaveSlot(id, json);
+        let s: GameState = { ...get() };
+        s = pushLog(s, `Saved to ${meta.label}`, "system");
+        set(s);
+        return meta;
+      },
+
+      loadFromSlot: (id) => {
+        const json = readSaveSlotJson(id);
+        if (!json) return false;
+        try {
+          const data = JSON.parse(json) as GameState;
+          set({
+            ...createInitialState(),
+            ...normalizeState({ ...createInitialState(), ...data }),
+            resultModal: null,
+            awayModal: null,
+            awardModal: null,
+            undoPending: null,
+            clock: Date.now(),
+          });
+          setActiveSaveSlot(id);
+          let s: GameState = { ...get() };
+          s = pushLog(s, `Loaded ${SAVE_SLOT_LABELS[id]}`, "system");
+          set(s);
+          return true;
+        } catch {
+          return false;
+        }
+      },
+
+      clearSlot: (id) => {
+        clearSaveSlot(id);
+        let s: GameState = { ...get() };
+        s = pushLog(s, `Cleared save slot ${id.toUpperCase()}`, "system");
+        set(s);
+      },
+
+      listSlots: () => listSaveSlotMeta(),
+      getActiveSlot: () => getActiveSaveSlot(),
 
       setDensity: (d) => set({ density: d }),
+      setHighContrast: (on) => {
+        let s: GameState = { ...get() };
+        s.highContrast = on;
+        s = pushLog(s, on ? "High contrast → on" : "High contrast → off", "system");
+        set(s);
+      },
+      setColorblindPack: (id) => {
+        let s: GameState = { ...get() };
+        s.colorblindPack = id;
+        s = pushLog(s, `Color pack → ${getColorblindPack(id).label}`, "system");
+        set(s);
+      },
+      setDifficulty: (d) => {
+        let s: GameState = { ...get() };
+        s.difficulty = d;
+        s = pushLog(s, `Difficulty → ${getDifficulty(d).label}`, "system");
+        set(s);
+      },
+      setAiLife: (on) => {
+        let s: GameState = { ...get() };
+        s.aiLife = on;
+        s = pushLog(s, on ? "AI city life → on (Grok)" : "AI city life → off", "system");
+        set(s);
+      },
+      setAdultNpc: (on) => {
+        let s: GameState = { ...get() };
+        s.adultNpc = on;
+        s = pushLog(
+          s,
+          on ? "Adult NPC banter → on (tagged contacts)" : "Adult NPC banter → off",
+          "system"
+        );
+        set(s);
+      },
     }),
     {
       name: "nightwire-save-v1",
       partialize: (s) => {
-        const { resultModal, awayModal, awardModal, clock, ...rest } = s;
+        const { resultModal, awayModal, awardModal, clock, undoPending, ...rest } = s;
         void resultModal;
         void awayModal;
         void awardModal;
         void clock;
+        void undoPending;
         return rest;
       },
       merge: (persisted, current) => {

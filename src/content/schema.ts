@@ -15,7 +15,7 @@ export const CrimeSchema = z.object({
 export const JobSchema = z.object({
   id: z.string(),
   career: z.string(),
-  rank: z.union([z.literal(1), z.literal(2)]),
+  rank: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]),
   title: z.string(),
   basePay: z.number(),
   energy: z.number(),

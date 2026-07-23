@@ -11,6 +11,7 @@ import {
 import { Module } from "@/components/ui/Module";
 import { GameButton } from "@/components/ui/GameButton";
 import { PageHero, DISTRICT_ART, NPC_ART } from "@/components/ui/Visuals";
+import { npcFlavor } from "@/game/persona";
 import { useGame } from "@/store/gameStore";
 import styles from "../tables.module.css";
 import attackStyles from "./attack.module.css";
@@ -99,7 +100,7 @@ export default function AttackPage() {
                   </div>
                 </div>
                 <div className={attackStyles.body}>
-                  <p className={attackStyles.flavor}>{npc.flavor}</p>
+                  <p className={attackStyles.flavor}>{npcFlavor(npc, s.adultNpc)}</p>
                   <div className={attackStyles.meta}>
                     <div>
                       <span>Power</span>

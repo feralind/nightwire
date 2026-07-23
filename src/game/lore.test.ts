@@ -18,6 +18,7 @@ import {
   syncTimeline,
 } from "@/game/lore";
 import { createInitialState, normalizeState } from "@/game/state";
+import type { DistrictId } from "@/game/types";
 
 describe("lore content floors", () => {
   it("ships expanded headlines and reactive flags", () => {
@@ -27,7 +28,7 @@ describe("lore content floors", () => {
 
   it("ships codex entries across districts, systems, schools, story", () => {
     expect(CODEX_ENTRIES.length).toBeGreaterThanOrEqual(28);
-    expect(CODEX_ENTRIES.filter((e) => e.category === "district")).toHaveLength(6);
+    expect(CODEX_ENTRIES.filter((e) => e.category === "district")).toHaveLength(8);
     expect(CODEX_ENTRIES.some((e) => e.category === "system")).toBe(true);
     expect(CODEX_ENTRIES.some((e) => e.category === "story")).toBe(true);
     expect(CODEX_ENTRIES.some((e) => e.category === "school")).toBe(true);
@@ -83,7 +84,10 @@ describe("codex unlocks", () => {
     expect(isCodexUnlocked(mill, locked)).toBe(false);
     const visited = {
       ...locked,
-      lifetime: { ...locked.lifetime, districtsVisited: ["glassrow", "millstone"] as const },
+      lifetime: {
+        ...locked.lifetime,
+        districtsVisited: ["glassrow", "millstone"] as DistrictId[],
+      },
     };
     expect(isCodexUnlocked(mill, visited)).toBe(true);
   });

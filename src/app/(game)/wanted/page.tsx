@@ -85,12 +85,20 @@ export default function WantedPage() {
               const portrait = NPC_ART[npc.id] ?? "/art/crimes/mug.webp";
               return (
                 <article key={npc.id} className={hub.panel}>
-                  <div style={{ display: "flex", gap: 10, marginBottom: 8 }}>
+                  <div style={{ display: "flex", gap: 12, marginBottom: 8, alignItems: "stretch" }}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={portrait}
                       alt=""
-                      style={{ width: 56, height: 56, objectFit: "cover", borderRadius: 4 }}
+                      style={{
+                        flex: "0 0 120px",
+                        width: 120,
+                        height: 140,
+                        objectFit: "cover",
+                        objectPosition: "center top",
+                        borderRadius: 4,
+                        background: "#151518",
+                      }}
                     />
                     <div>
                       <strong>{npc.name}</strong>

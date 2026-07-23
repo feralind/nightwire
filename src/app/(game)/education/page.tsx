@@ -15,7 +15,7 @@ import { licenseEffectLabels, licensePerkSum } from "@/game/licenses";
 import { Module } from "@/components/ui/Module";
 import { GameButton } from "@/components/ui/GameButton";
 import { RequirementsBox } from "@/components/ui/RequirementsBox";
-import { PageHero, SCHOOL_ART, SceneBanner } from "@/components/ui/Visuals";
+import { COURSE_ART, PageHero, SCHOOL_ART, SceneBanner } from "@/components/ui/Visuals";
 import { useGame } from "@/store/gameStore";
 import hub from "../hub.module.css";
 import styles from "../tables.module.css";
@@ -45,7 +45,7 @@ export default function EducationPage() {
     <div className={hub.wrap}>
       <PageHero
         title="Education campus"
-        subtitle="Study while you earn — five schools, stacked certs, and unlocks that keep the city open."
+        subtitle="Study while you earn — six schools, stacked certs, and unlocks that keep the city open."
         tone="campus"
         image="/art/campus/hero.webp"
         tall
@@ -140,6 +140,7 @@ export default function EducationPage() {
             const cleanReasons = courseEnrollReasons(c, s, false);
             const streetReasons = courseEnrollReasons(c, s, true);
             const showReq = !done && !isActive && (cleanReasons.length > 0 || streetReasons.length > 0);
+            const courseArt = COURSE_ART[c.id] ?? schoolArt;
             return (
               <article
                 key={c.id}
@@ -155,8 +156,8 @@ export default function EducationPage() {
               >
                 <div
                   style={{
-                    height: 96,
-                    background: `linear-gradient(180deg,transparent 30%,rgba(0,0,0,0.75)), center 30%/cover no-repeat url(${schoolArt})`,
+                    height: 128,
+                    background: `linear-gradient(180deg,transparent 30%,rgba(0,0,0,0.75)), center 30%/cover no-repeat url(${courseArt})`,
                     position: "relative",
                   }}
                 >

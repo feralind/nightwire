@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Module } from "@/components/ui/Module";
 import { GameButton } from "@/components/ui/GameButton";
 import { ArtTile, PageHero } from "@/components/ui/Visuals";
@@ -15,6 +16,8 @@ type TableDef = {
   bet: number;
   edge: string;
   badge: string;
+  /** Approximate plays/hour for honest EV strip */
+  pacePerHour: number;
 };
 
 const TABLES: TableDef[] = [
@@ -26,6 +29,7 @@ const TABLES: TableDef[] = [
     bet: 50,
     badge: "Live",
     edge: "EV −5%",
+    pacePerHour: 40,
   },
   {
     id: "blackjack",
@@ -35,6 +39,7 @@ const TABLES: TableDef[] = [
     bet: 100,
     badge: "Live",
     edge: "EV −5%",
+    pacePerHour: 30,
   },
   {
     id: "highlow",
@@ -44,6 +49,7 @@ const TABLES: TableDef[] = [
     bet: 75,
     badge: "Live",
     edge: "EV −4%",
+    pacePerHour: 35,
   },
   {
     id: "roulette",
@@ -53,6 +59,7 @@ const TABLES: TableDef[] = [
     bet: 200,
     badge: "Live",
     edge: "EV −12%",
+    pacePerHour: 20,
   },
   {
     id: "poker",
@@ -62,12 +69,19 @@ const TABLES: TableDef[] = [
     bet: 100,
     badge: "Live",
     edge: "EV −8%",
+    pacePerHour: 28,
   },
 ];
 
+function edgeRate(edge: string): number {
+  const m = edge.match(/([\d.]+)/);
+  return m ? Number(m[1]) / 100 : 0.05;
+}
+
 export default function CasinoPage() {
   const s = useGame();
-  const lossPerHour = Math.round(50 * 0.05 * 40); // rough slots pace flavor
+  const slots = TABLES[0]!;
+  const lossPerHour = Math.round(slots.bet * edgeRate(slots.edge) * slots.pacePerHour);
 
   return (
     <div className={hub.wrap}>
@@ -86,28 +100,41 @@ export default function CasinoPage() {
         </div>
       </PageHero>
 
+      <p className={hub.sub}>
+        Need clean chips? <Link href="/cleaning">Wash street first</Link>
+        {" · "}
+        Bookkeeping (cf1) trims win chance +1.5% flavor — house still wins long-run.
+      </p>
+
       <div className={hub.grid2}>
-        <Module title="Floor" footer="Live tables take clean · Bookkeeping (cf1) tiny flavor perk">
+        <Module title="Floor" footer="Live tables take clean · streaks raise stress / heat">
           <div className={hub.grid}>
-            {TABLES.map((t) => (
-              <ArtTile key={t.id} image={t.image} title={t.name} subtitle={t.blurb} badge={t.badge}>
-                <div className={hub.statRow}>
-                  <span>Bet</span>
-                  <strong className="tabular">{formatMoney(t.bet)}</strong>
-                </div>
-                <div className={hub.statRow}>
-                  <span>Edge</span>
-                  <strong>{t.edge}</strong>
-                </div>
-                <GameButton
-                  variant="danger"
-                  disabled={s.clean < t.bet}
-                  onClick={() => s.playCasino(t.id)}
-                >
-                  Play ({formatMoney(t.bet)})
-                </GameButton>
-              </ArtTile>
-            ))}
+            {TABLES.map((t) => {
+              const evHour = Math.round(t.bet * edgeRate(t.edge) * t.pacePerHour);
+              return (
+                <ArtTile key={t.id} image={t.image} title={t.name} subtitle={t.blurb} badge={t.badge}>
+                  <div className={hub.statRow}>
+                    <span>Bet</span>
+                    <strong className="tabular">{formatMoney(t.bet)}</strong>
+                  </div>
+                  <div className={hub.statRow}>
+                    <span>Edge</span>
+                    <strong>{t.edge}</strong>
+                  </div>
+                  <div className={hub.statRow}>
+                    <span>~Loss/hr</span>
+                    <strong className="tabular">{formatMoney(evHour)}</strong>
+                  </div>
+                  <GameButton
+                    variant="danger"
+                    disabled={s.clean < t.bet}
+                    onClick={() => s.playCasino(t.id)}
+                  >
+                    Play ({formatMoney(t.bet)})
+                  </GameButton>
+                </ArtTile>
+              );
+            })}
           </div>
         </Module>
 
@@ -147,7 +174,8 @@ export default function CasinoPage() {
             <ul className={hub.sub} style={{ margin: 0, paddingLeft: 16 }}>
               <li>No street cash on the felt</li>
               <li>Hospital / jail / travel block play</li>
-              <li>Expected loss/hour stays visible — we&apos;re not a dark pattern casino</li>
+              <li>Per-table ~loss/hr stays visible — no dark-pattern hide</li>
+              <li>Comps are the leisure sink, not a +EV loop</li>
             </ul>
           </div>
         </div>

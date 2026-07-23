@@ -92,13 +92,14 @@ describe("education gating", () => {
     expect(applyHospitalDuration(100_000, ["mc1"], ["med_aide"])).toBe(75_000);
   });
 
-  it("ships five schools on the V2 campus", () => {
+  it("ships six schools on the campus", () => {
     expect(schools()).toEqual([
       "Street Electives",
       "Commerce & Finance",
       "Harbor & Logistics",
       "Med & Civic",
       "Locks & Entry",
+      "Systems & Signals",
     ]);
   });
 
@@ -147,11 +148,12 @@ describe("education gating", () => {
 });
 
 describe("v1 catalog floors", () => {
-  it("ships 24 jobs across 8 careers × 3 ranks", () => {
-    expect(JOBS).toHaveLength(24);
-    expect(COURSES).toHaveLength(15);
-    expect(JOBS.filter((j) => j.rank === 1)).toHaveLength(8);
-    expect(JOBS.filter((j) => j.rank === 2)).toHaveLength(8);
-    expect(JOBS.filter((j) => j.rank === 3)).toHaveLength(8);
+  it("ships 64 jobs across 16 careers × 4 ranks and 48 courses", () => {
+    expect(JOBS).toHaveLength(64);
+    expect(COURSES).toHaveLength(48);
+    expect(JOBS.filter((j) => j.rank === 1)).toHaveLength(16);
+    expect(JOBS.filter((j) => j.rank === 2)).toHaveLength(16);
+    expect(JOBS.filter((j) => j.rank === 3)).toHaveLength(16);
+    expect(JOBS.filter((j) => j.rank === 4)).toHaveLength(16);
   });
 });
